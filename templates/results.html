@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+    <a href="{{ url_for('searches_page') }}" class="entity-domain" data-i18n="back">Back to history</a>
+    <h1 id="result-title" style="margin-top:8px">&nbsp;</h1>
+    <p class="muted" id="result-meta"></p>
+
+    <div id="export-actions" style="margin-top: 15px; display: none; gap: 10px; justify-content: center;">
+        <a href="/api/search/{{ search_id }}/export/excel" class="btn btn-primary" target="_blank">📊 Export Excel</a>
+        <a href="/api/search/{{ search_id }}/export" class="btn btn-ghost" target="_blank">📄 Export JSON</a>
+    </div>
+</section>
+
+<div class="card progress-wrap" id="progress-card">
+    <h3 data-i18n="progress_title">Progress</h3>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="progress-msg" id="progress-msg"><span class="spinner"></span><span id="progress-text"></span></div>
+</div>
+
+<div id="results-area">
+    <div class="empty"><span class="spinner"></span> <span data-i18n="loading">Loading…</span></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/render.js') }}"></script>
+<script>
+const SEARCH_ID = {{ search_id }};
+const resultsArea = document.getElementById("results-area");
+const progressCard = document.getElementById("progress-card");
+const progressFill = document.getElementById("progress-fill");
+const progressText = document.getElementById("progress-text");
+const titleEl = document.getElementById("result-title");
+const metaEl = document.getElementById("result-meta");
+let ENTITIES = [];
+let poller = null;
+
+function showTitle(search) {
+  if (!search) return;
+  titleEl.textContent = search.query + (search.location ? " — " + search.location : "");
+  const parts = [];
+  if (search.entity_type) parts.push(search.entity_type);
+  parts.push(`${t("th_count")}: ${search.results_count}`);
+  metaEl.textContent = parts.join(" · ");
+}
+
+async function refresh() {
+  const res = await fetch(`/api/search/${SEARCH_ID}/results`);
+  const data = await res.json();
+  showTitle(data.search);
+  ENTITIES = data.entities || [];
+
+  const status = data.search.status;
+  if (status === "running" || status === "pending") {
+    progressCard.classList.add("show");
+    progressFill.style.width = Math.max(2, data.search.progress) + "%";
+    progressText.textContent = data.search.message || t("status_" + status);
+    if (!poller) poller = setInterval(refresh, 1300);
+  } else {
+    progressCard.classList.remove("show");
+    if (poller) { clearInterval(poller); poller = null; }
+    document.getElementById("export-actions").style.display = "flex";
+    renderResults(resultsArea, ENTITIES, { searchId: SEARCH_ID });
+  }
+}
+
+document.addEventListener("langchange", () => {
+  if (ENTITIES.length) renderResults(resultsArea, ENTITIES, { searchId: SEARCH_ID });
+});
+refresh();
+</script>
+{% endblock %}

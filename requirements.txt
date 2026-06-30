@@ -1,0 +1,16 @@
+# Web framework
+Flask==3.0.3
+
+# HTTP + scraping
+requests==2.32.3
+beautifulsoup4==4.12.3
+lxml==5.3.0
+
+# Search backend (free, no API key) -- DuckDuckGo
+ddgs==9.0.0
+
+# Phone number parsing (handles Saudi +966 and international formats)
+phonenumbers==8.13.45
+
+# Config / environment
+python-dotenv==1.0.1

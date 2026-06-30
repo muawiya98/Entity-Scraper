@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+    <h1 data-i18n="history_title">Search History</h1>
+</section>
+
+<div id="history-area">
+    <div class="empty"><span class="spinner"></span> <span data-i18n="loading">Loading…</span></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const area = document.getElementById("history-area");
+let SEARCHES = [];
+
+function fmtDate(iso) {
+  if (!iso) return "—";
+  try { return new Date(iso).toLocaleString(CURRENT_LANG === "ar" ? "ar" : "en-GB"); }
+  catch (e) { return iso; }
+}
+
+function renderHistory() {
+  if (!SEARCHES.length) {
+    area.innerHTML = `<div class="card"><div class="empty">${t("no_history")}</div></div>`;
+    return;
+  }
+  const rows = SEARCHES.map((s) => {
+    const q = s.query + (s.location ? ` — ${s.location}` : "");
+    return `<tr>
+      <td>${s.id}</td>
+      <td><a href="/search/${s.id}">${escHtml(q)}</a></td>
+      <td><span class="status-tag status-${s.status}">${t("status_" + s.status)}</span></td>
+      <td>${s.results_count}</td>
+      <td>${fmtDate(s.created_at)}</td>
+      <td>
+        <a class="btn btn-ghost btn-sm" href="/search/${s.id}">${t("open")}</a>
+        <a class="btn btn-ghost btn-sm" href="/api/search/${s.id}/export/excel" title="Export Excel">📊 Excel</a>
+        <button class="btn btn-danger btn-sm" data-del="${s.id}">${t("delete")}</button>
+      </td>
+    </tr>`;
+  }).join("");
+
+  area.innerHTML = `<table class="table">
+    <thead><tr>
+      <th>${t("th_id")}</th><th>${t("th_query")}</th><th>${t("th_status")}</th>
+      <th>${t("th_count")}</th><th>${t("th_date")}</th><th>${t("th_actions")}</th>
+    </tr></thead>
+    <tbody>${rows}</tbody></table>`;
+
+  area.querySelectorAll("[data-del]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm(t("confirm_delete"))) return;
+      await fetch(`/api/search/${btn.dataset.del}`, { method: "DELETE" });
+      SEARCHES = SEARCHES.filter((x) => String(x.id) !== btn.dataset.del);
+      renderHistory();
+    });
+  });
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+async function loadHistory() {
+  const res = await fetch("/api/searches");
+  const data = await res.json();
+  SEARCHES = data.searches || [];
+  renderHistory();
+}
+
+document.addEventListener("langchange", () => { if (SEARCHES.length || area) renderHistory(); });
+loadHistory();
+</script>
+{% endblock %}

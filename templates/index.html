@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+    <h1 data-i18n="hero_title">Find &amp; extract entity contact data</h1>
+    <p data-i18n="hero_sub">Search for companies, schools, universities, academies or any organisation and automatically collect names, phones, emails, people and positions.</p>
+</section>
+
+<div class="card">
+    <form id="search-form">
+        <div class="form-grid">
+            <div class="field full">
+                <label for="query" data-i18n="label_query">What are you looking for?</label>
+                <input type="text" id="query" name="query" data-i18n-ph="ph_query" required autocomplete="off">
+            </div>
+            <div class="field">
+                <label for="location" data-i18n="label_location">Location (optional)</label>
+                <input type="text" id="location" name="location" data-i18n-ph="ph_location" autocomplete="off">
+            </div>
+            <div class="field">
+                <label for="entity_type" data-i18n="label_type">Entity type (optional)</label>
+                <input type="text" id="entity_type" name="entity_type" data-i18n-ph="ph_type" autocomplete="off">
+            </div>
+            <div class="field full">
+                <label for="max_results" data-i18n="label_max">Number of websites to scan</label>
+                <div class="range-row">
+                    <input type="range" id="max_results" name="max_results" min="1" max="30" value="10">
+                    <span class="range-val" id="max_val">10</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="submit-btn">
+                <span data-i18n="btn_search">Start Search</span>
+            </button>
+        </div>
+
+        <div class="backends">
+            <div style="width:100%" class="backends-label" data-i18n="backends_title">Active search backend</div>
+            <span class="backend-pill"><span class="dot on"></span><span data-i18n="backend_free">Free DuckDuckGo (no key)</span></span>
+            <span class="backend-pill"><span class="dot {{ 'on' if backends.google else '' }}"></span><span data-i18n="backend_google">Google API</span></span>
+            <span class="backend-pill"><span class="dot {{ 'on' if backends.serpapi else '' }}"></span><span data-i18n="backend_serpapi">SerpAPI</span></span>
+            <span class="backend-pill"><span class="dot {{ 'on' if llm.enabled else '' }}"></span><span data-i18n="backend_llm">LLM assist</span></span>
+        </div>
+    </form>
+</div>
+
+<div class="card progress-wrap" id="progress-card">
+    <h3 data-i18n="progress_title">Progress</h3>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="progress-msg" id="progress-msg"><span class="spinner"></span><span id="progress-text"></span></div>
+</div>
+
+<div id="results-area"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/render.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}
