@@ -59,6 +59,28 @@ ENTITY_HINTS = {
     "مورد", "مقاول", "استشارات", "استشارية",
 }
 
+# --------------------------------------------------------------------------- #
+# People-data requirement
+# --------------------------------------------------------------------------- #
+# Every search exists to extract *people's* data — names paired with their
+# positions, phone numbers, e-mail addresses, or other personal details.  This
+# requirement is attached to the query at every stage (search variants,
+# ranking, relevance scoring, crawling, and the final return gate) so the whole
+# system pulls in the same direction.
+
+# Words that mark a page/section as likely to list people and their contacts.
+PEOPLE_HINTS = {
+    # English
+    "team", "our team", "staff", "people", "leadership", "management",
+    "board", "directors", "director", "employees", "employee", "members",
+    "member", "founder", "founders", "officers", "executives", "executive",
+    "personnel", "who we are", "meet the team", "contact",
+    # Arabic
+    "فريق", "الفريق", "فريقنا", "طاقم", "الكادر", "كادر", "موظفون", "موظفين",
+    "الموظفين", "الإدارة", "ادارة", "إدارة", "مجلس الإدارة", "مجلس", "أعضاء",
+    "اعضاء", "عضو", "القيادة", "هيئة", "الهيئة", "من نحن", "تواصل", "اتصل",
+}
+
 EN_STOPWORDS = {
     "a", "an", "and", "are", "as", "at", "by", "for", "from", "in", "into",
     "near", "of", "on", "or", "the", "to", "with", "about", "best", "top",
@@ -227,6 +249,10 @@ def relevance_score(
         score += 2
     if any(normalize_token(t) in text_terms for t in ENTITY_HINTS):
         score += 2
+    # The query is about extracting people's data, so reward team / staff /
+    # leadership / contact pages that are likely to carry it.
+    if contains_any(text_low, PEOPLE_HINTS):
+        score += 3
     if profile["arabic"] and has_arabic(text):
         score += 2
 
@@ -295,3 +321,24 @@ def record_is_relevant(
 ) -> bool:
     score = record_relevance_score(record, query, location, entity_type)
     return score >= minimum_score(query, location, entity_type)
+
+
+def has_people_data(record: dict) -> bool:
+    """True when the record carries at least one usable person.
+
+    A usable person has a name plus at least one personal detail (position,
+    e-mail, phone, or profile link).  Because every search exists to extract
+    people's data, records without such a person are dropped before they are
+    stored — nothing is returned for an entity that yields no people.
+    """
+    for person in record.get("people") or []:
+        if not isinstance(person, dict):
+            continue
+        if not str(person.get("name") or "").strip():
+            continue
+        if any(
+            str(person.get(field) or "").strip()
+            for field in ("position", "email", "phone", "profile_url")
+        ):
+            return True
+    return False

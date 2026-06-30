@@ -94,6 +94,12 @@ def run_pipeline(search_id: int) -> None:
                 ):
                     log.info("Skipping low-relevance record: %s", result.url)
                     continue
+                # The query is a people-data extraction request: an entity that
+                # yields no usable person (name + position/email/phone) is
+                # dropped, so nothing is returned for it.
+                if not safety.has_people_data(record):
+                    log.info("Skipping record with no people data: %s", result.url)
+                    continue
                 if llm.enabled():
                     verdict = llm.validate_entity_record(record, query, location, entity_type)
                     if verdict:

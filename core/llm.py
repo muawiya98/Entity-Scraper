@@ -83,7 +83,9 @@ def _loads_json(content: str) -> Any | None:
 def query_variants(query: str, location: str = "", entity_type: str = "") -> list[str]:
     """Generate backup search queries when the normal search returns too little."""
     data = _json_prompt(
-        "You create concise web search queries for finding official entity websites. "
+        "You create concise web search queries whose goal is to extract the PEOPLE behind "
+        "an entity — their names, positions/job titles, phone numbers and e-mail addresses. "
+        "Target official team, staff, leadership, board and contact pages. "
         "Return JSON only: {\"queries\": [\"...\"]}. Prefer official websites over directories.",
         json.dumps(
             {"query": query, "location": location, "entity_type": entity_type},
@@ -110,8 +112,11 @@ def rank_search_results(
 ) -> list[str]:
     """Return result URLs in preferred order, filtering likely directories/noise."""
     data = _json_prompt(
-        "You rank search results for an entity data scraper. Keep official websites, "
-        "schools, companies, institutions, universities, academies, and useful contact pages. "
+        "You rank search results for a scraper whose goal is to extract people's data "
+        "(names, positions, phones, e-mails). Strongly prefer pages that list an entity's "
+        "people — team, staff, leadership, board, management — together with their contact "
+        "details, plus official websites and contact pages for schools, companies, "
+        "institutions, universities and academies. "
         "Avoid directories, job boards, social networks, login pages, and generic articles. "
         "Return JSON only: {\"urls\": [\"https://...\"]}.",
         json.dumps(

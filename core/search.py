@@ -84,6 +84,12 @@ def _query_variants(query: str, location: str, entity_type: str) -> list[str]:
                 f"{base} اتصل بنا",
                 f"{base} تواصل",
                 f"{base} من نحن",
+                # People-data focus: surface team / staff / leadership + contacts.
+                f"{base} فريق العمل",
+                f"{base} الإدارة",
+                f"{base} أعضاء مجلس الإدارة",
+                f"{base} طاقم العمل",
+                f"{base} تواصل البريد الإلكتروني والهاتف",
             ]
         )
     else:
@@ -91,6 +97,12 @@ def _query_variants(query: str, location: str, entity_type: str) -> list[str]:
             [
                 f"{base} company website",
                 f"{base} organization website",
+                # People-data focus: surface team / staff / leadership + contacts.
+                f"{base} team",
+                f"{base} staff",
+                f"{base} leadership team",
+                f"{base} board of directors",
+                f"{base} contact people email phone",
             ]
         )
 
