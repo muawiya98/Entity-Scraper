@@ -1,9 +1,9 @@
 """Safety and generic relevance filters shared by search and scraping."""
+
 from __future__ import annotations
 
 import re
 from urllib.parse import urlparse
-
 
 AR_RE = re.compile(r"[\u0600-\u06ff]")
 TOKEN_RE = re.compile(r"[\w\u0600-\u06ff]+", re.UNICODE)
@@ -11,52 +11,201 @@ TOKEN_RE = re.compile(r"[\w\u0600-\u06ff]+", re.UNICODE)
 # Second-level labels that should never be treated as target entity websites.
 BLOCKED_DOMAIN_LABELS = {
     # Social/search/directory/general platforms.
-    "facebook", "twitter", "x", "instagram", "linkedin", "youtube", "youtu",
-    "tiktok", "pinterest", "snapchat", "telegram", "whatsapp", "wa", "t",
-    "google", "bing", "yahoo", "duckduckgo", "baidu", "yandex",
-    "wikipedia", "wikimedia", "wikidata", "fandom", "merriam-webster",
-    "yelp", "tripadvisor", "foursquare", "booking", "agoda", "trivago",
-    "amazon", "ebay", "aliexpress", "noon",
-    "indeed", "glassdoor", "bayt", "naukrigulf", "f6s",
-    "crunchbase", "bloomberg", "reuters", "forbes",
-    "reddit", "medium", "quora", "blogspot", "wordpress", "tumblr",
-    "github", "gitlab", "stackoverflow",
-    "play", "apps", "appstore", "microsoft", "apple",
-    "maps", "goo", "office", "outlook", "onedrive", "live", "msn",
-    "hotmail", "gmail", "sharepoint", "microsoftonline", "skype",
+    "facebook",
+    "twitter",
+    "x",
+    "instagram",
+    "linkedin",
+    "youtube",
+    "youtu",
+    "tiktok",
+    "pinterest",
+    "snapchat",
+    "telegram",
+    "whatsapp",
+    "wa",
+    "t",
+    "google",
+    "bing",
+    "yahoo",
+    "duckduckgo",
+    "baidu",
+    "yandex",
+    "wikipedia",
+    "wikimedia",
+    "wikidata",
+    "fandom",
+    "merriam-webster",
+    "yelp",
+    "tripadvisor",
+    "foursquare",
+    "booking",
+    "agoda",
+    "trivago",
+    "amazon",
+    "ebay",
+    "aliexpress",
+    "noon",
+    "indeed",
+    "glassdoor",
+    "bayt",
+    "naukrigulf",
+    "f6s",
+    "crunchbase",
+    "bloomberg",
+    "reuters",
+    "forbes",
+    "reddit",
+    "medium",
+    "quora",
+    "blogspot",
+    "wordpress",
+    "tumblr",
+    "github",
+    "gitlab",
+    "stackoverflow",
+    "play",
+    "apps",
+    "appstore",
+    "microsoft",
+    "apple",
+    "maps",
+    "goo",
+    "office",
+    "outlook",
+    "onedrive",
+    "live",
+    "msn",
+    "hotmail",
+    "gmail",
+    "sharepoint",
+    "microsoftonline",
+    "skype",
     "bingplaces",
     # Game/esports false positives and adult/inappropriate domains.
-    "lol", "leagueoflegends", "liquipedia", "wegame",
-    "xvideos", "pornhub", "xnxx", "xhamster", "redtube", "youporn",
-    "onlyfans", "chaturbate", "brazzers", "spankbang", "xhamsterlive",
+    "lol",
+    "leagueoflegends",
+    "liquipedia",
+    "wegame",
+    "xvideos",
+    "pornhub",
+    "xnxx",
+    "xhamster",
+    "redtube",
+    "youporn",
+    "onlyfans",
+    "chaturbate",
+    "brazzers",
+    "spankbang",
+    "xhamsterlive",
 }
 
 BLOCKED_URL_TERMS = {
-    "porn", "xxx", "sex", "adult", "escort", "casino", "betting", "gambling",
-    "leagueoflegends", "liquipedia", "/lol", "xvideos",
+    "porn",
+    "xxx",
+    "sex",
+    "adult",
+    "escort",
+    "casino",
+    "betting",
+    "gambling",
+    "leagueoflegends",
+    "liquipedia",
+    "/lol",
+    "xvideos",
 }
 
 NOISE_TERMS = {
-    "wiki", "wikipedia", "news", "article", "forum", "thread", "login",
-    "sign in", "signin", "job", "jobs", "careers", "download", "definition",
-    "dictionary", "video", "image", "images", "map", "maps",
+    "wiki",
+    "wikipedia",
+    "news",
+    "article",
+    "forum",
+    "thread",
+    "login",
+    "sign in",
+    "signin",
+    "job",
+    "jobs",
+    "careers",
+    "download",
+    "definition",
+    "dictionary",
+    "video",
+    "image",
+    "images",
+    "map",
+    "maps",
 }
 
 OFFICIAL_HINTS = {
-    "official", "website", "homepage", "contact", "about", "اتصل", "تواصل",
-    "الموقع", "الرسمي", "من نحن", "عن",
+    "official",
+    "website",
+    "homepage",
+    "contact",
+    "about",
+    "اتصل",
+    "تواصل",
+    "الموقع",
+    "الرسمي",
+    "من نحن",
+    "عن",
 }
 
 ENTITY_HINTS = {
-    "company", "companies", "firm", "firms", "business", "institution",
-    "organization", "organisation", "school", "academy", "university",
-    "college", "hospital", "clinic", "agency", "office", "center", "centre",
-    "association", "foundation", "group", "developer", "manufacturer",
-    "supplier", "distributor", "contractor", "consultant", "consulting",
-    "شركة", "شركات", "مؤسسة", "مؤسسات", "منشأة", "منشآت", "مدرسة",
-    "مدارس", "أكاديمية", "اكاديمية", "جامعة", "جامعات", "كلية", "مستشفى",
-    "عيادة", "وكالة", "مكتب", "مركز", "جمعية", "مجموعة", "مصنع",
-    "مورد", "مقاول", "استشارات", "استشارية",
+    "company",
+    "companies",
+    "firm",
+    "firms",
+    "business",
+    "institution",
+    "organization",
+    "organisation",
+    "school",
+    "academy",
+    "university",
+    "college",
+    "hospital",
+    "clinic",
+    "agency",
+    "office",
+    "center",
+    "centre",
+    "association",
+    "foundation",
+    "group",
+    "developer",
+    "manufacturer",
+    "supplier",
+    "distributor",
+    "contractor",
+    "consultant",
+    "consulting",
+    "شركة",
+    "شركات",
+    "مؤسسة",
+    "مؤسسات",
+    "منشأة",
+    "منشآت",
+    "مدرسة",
+    "مدارس",
+    "أكاديمية",
+    "اكاديمية",
+    "جامعة",
+    "جامعات",
+    "كلية",
+    "مستشفى",
+    "عيادة",
+    "وكالة",
+    "مكتب",
+    "مركز",
+    "جمعية",
+    "مجموعة",
+    "مصنع",
+    "مورد",
+    "مقاول",
+    "استشارات",
+    "استشارية",
 }
 
 # --------------------------------------------------------------------------- #
@@ -82,16 +231,62 @@ PEOPLE_HINTS = {
 }
 
 EN_STOPWORDS = {
-    "a", "an", "and", "are", "as", "at", "by", "for", "from", "in", "into",
-    "near", "of", "on", "or", "the", "to", "with", "about", "best", "top",
-    "list", "lists", "directory", "directories", "official", "website",
-    "websites", "contact",
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "by",
+    "for",
+    "from",
+    "in",
+    "into",
+    "near",
+    "of",
+    "on",
+    "or",
+    "the",
+    "to",
+    "with",
+    "about",
+    "best",
+    "top",
+    "list",
+    "lists",
+    "directory",
+    "directories",
+    "official",
+    "website",
+    "websites",
+    "contact",
 }
 
 AR_STOPWORDS = {
-    "في", "من", "عن", "على", "الى", "إلى", "و", "او", "أو", "التي", "الذي",
-    "هذا", "هذه", "ذلك", "تلك", "أفضل", "افضل", "قائمة", "دليل", "الموقع",
-    "الرسمي", "تواصل", "اتصل", "بنا",
+    "في",
+    "من",
+    "عن",
+    "على",
+    "الى",
+    "إلى",
+    "و",
+    "او",
+    "أو",
+    "التي",
+    "الذي",
+    "هذا",
+    "هذه",
+    "ذلك",
+    "تلك",
+    "أفضل",
+    "افضل",
+    "قائمة",
+    "دليل",
+    "الموقع",
+    "الرسمي",
+    "تواصل",
+    "اتصل",
+    "بنا",
 }
 
 
@@ -199,12 +394,15 @@ def query_profile(query: str, location: str = "", entity_type: str = "") -> dict
     }
 
 
-def query_intent(query: str, location: str = "", entity_type: str = "") -> dict[str, bool]:
+def query_intent(
+    query: str, location: str = "", entity_type: str = ""
+) -> dict[str, bool]:
     profile = query_profile(query, location, entity_type)
     entity_norm = {normalize_token(t) for t in ENTITY_HINTS}
     return {
         "arabic": bool(profile["arabic"]),
-        "entity": any(t in entity_norm for t in profile["all_terms"]) or bool(entity_type),
+        "entity": any(t in entity_norm for t in profile["all_terms"])
+        or bool(entity_type),
     }
 
 
@@ -303,7 +501,7 @@ def record_relevance_score(
             meta.get("search_snippet"),
         )
     )
-    return relevance_score(
+    score = relevance_score(
         title=title,
         snippet=snippet,
         domain=str(record.get("domain") or ""),
@@ -312,6 +510,12 @@ def record_relevance_score(
         entity_type=entity_type,
     )
 
+    # Boost score significantly if people data was extracted
+    num_people = len(record.get("people") or [])
+    if num_people > 0:
+        score += min(num_people * 2, 10)  # Up to 10 points bonus
+
+    return score
 
 def record_is_relevant(
     record: dict,

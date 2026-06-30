@@ -6,6 +6,7 @@ For a given homepage URL the scraper:
 3. fetches those too,
 4. merges the per-page extraction results into a single entity record.
 """
+
 from __future__ import annotations
 
 import logging
@@ -21,13 +22,31 @@ from core import extractor, llm, safety
 
 log = logging.getLogger(__name__)
 
-# Keywords (EN + AR) that mark a link as worth following for contact/people data.
 PAGE_KEYWORDS = {
+    "team": [
+        "team",
+        "our-team",
+        "staff",
+        "people",
+        "leadership",
+        "management",
+        "board",
+        "directors",
+        "faculty",
+        "employees",
+        "فريق",
+        "الفريق",
+        "فريقنا",
+        "إدارة",
+        "الإدارة",
+        "مجلس",
+        "موظفون",
+        "كادر",
+        "منسوبي",
+        "الهيئة التدريسية",
+    ],
     "contact": ["contact", "contact-us", "اتصل", "تواصل", "اتصل-بنا", "تواصل-معنا"],
     "about": ["about", "about-us", "who-we-are", "من-نحن", "عن", "نبذة", "من نحن"],
-    "team": ["team", "our-team", "staff", "people", "leadership", "management",
-             "board", "directors", "فريق", "الفريق", "فريقنا", "إدارة", "الإدارة",
-             "مجلس", "موظفون", "كادر"],
 }
 
 
@@ -74,7 +93,9 @@ class SiteScraper:
             log.info("robots.txt disallows %s", url)
             return None, 0
         try:
-            resp = self.session.get(url, timeout=config.REQUEST_TIMEOUT, allow_redirects=True)
+            resp = self.session.get(
+                url, timeout=config.REQUEST_TIMEOUT, allow_redirects=True
+            )
             ctype = resp.headers.get("Content-Type", "")
             if "html" not in ctype and "text" not in ctype:
                 return None, resp.status_code
@@ -100,12 +121,22 @@ class SiteScraper:
             href = a["href"].strip()
             if href.startswith(("#", "mailto:", "tel:", "javascript:")):
                 continue
-                
+
             # فلترة ذكية مستوحاة من الكود الخاص بك لتجاهل الروابط غير المفيدة
-            skip_keywords = ["news", "careers", "jobs", "blog", "article", "sustainability", "login", "register", "cart"]
+            skip_keywords = [
+                "news",
+                "careers",
+                "jobs",
+                "blog",
+                "article",
+                "sustainability",
+                "login",
+                "register",
+                "cart",
+            ]
             if any(kw in href.lower() for kw in skip_keywords):
                 continue
-                
+
             full = urljoin(base_url, href)
             if urlparse(full).netloc.replace("www.", "") != base_domain:
                 continue
@@ -145,7 +176,7 @@ class SiteScraper:
         if not html:
             # Retry once over http if https failed.
             if start_url.startswith("https://"):
-                html, status = self._fetch("http://" + start_url[len("https://"):])
+                html, status = self._fetch("http://" + start_url[len("https://") :])
             if not html:
                 return None
 
@@ -175,7 +206,11 @@ class SiteScraper:
                 record["description"] = part["description"]
             addr, city, country = part.get("address", ("", "", ""))
             if addr and not record["address"]:
-                record["address"], record["city"], record["country"] = addr, city, country
+                record["address"], record["city"], record["country"] = (
+                    addr,
+                    city,
+                    country,
+                )
             for email in part.get("emails", []):
                 if email not in record["emails"]:
                     record["emails"].append(email)
@@ -196,7 +231,9 @@ class SiteScraper:
         for page_type, url in list(internal.items())[:budget]:
             time.sleep(config.REQUEST_DELAY)
             sub_html, sub_status = self._fetch(url)
-            pages_visited.append({"url": url, "page_type": page_type, "status_code": sub_status})
+            pages_visited.append(
+                {"url": url, "page_type": page_type, "status_code": sub_status}
+            )
             if sub_html:
                 _merge(extractor.parse_page(sub_html, url, self.region))
 
@@ -232,7 +269,7 @@ def _apply_record_enhancement(record: dict, enhancement: dict) -> None:
         value = enhancement.get(field)
         if isinstance(value, str) and value.strip():
             if field in {"description", "address"}:
-                record[field] = value.strip()[:500 if field == "description" else 300]
+                record[field] = value.strip()[: 500 if field == "description" else 300]
             else:
                 record[field] = value.strip()
 

@@ -5,6 +5,7 @@ when an API key is configured, and each function is written as a safe fallback:
 if the model call fails or returns invalid JSON, the caller keeps its core
 result.
 """
+
 from __future__ import annotations
 
 import json
@@ -88,7 +89,12 @@ def query_variants(query: str, location: str = "", entity_type: str = "") -> lis
         "Target official team, staff, leadership, board and contact pages. "
         "Return JSON only: {\"queries\": [\"...\"]}. Prefer official websites over directories.",
         json.dumps(
-            {"query": query, "location": location, "entity_type": entity_type},
+            {
+                "query": query,
+                "location": location,
+                "entity_type": entity_type,
+                "primary_goal": "Find pages containing people's data (staff, team members, management).",
+            },
             ensure_ascii=False,
         ),
         max_tokens=500,
@@ -143,10 +149,16 @@ def select_relevant_links(base_url: str, links: list[dict], budget: int) -> list
         return []
     data = _json_prompt(
         "You select internal pages likely to contain organization contact details, "
-        "staff, leadership, team members, addresses, phones, or emails. "
-        "Return JSON only: {\"links\": [{\"url\":\"...\", \"page_type\":\"contact|about|team|other\"}]}",
+        "staff directories, leadership, team members, and employee emails/phones. "
+        "Your top priority is finding 'team' or 'staff' pages. "
+        'Return JSON only: {"links": [{"url":"...", "page_type":"contact|about|team|other"}]}',
         json.dumps(
-            {"base_url": base_url, "budget": budget, "links": links[:80]},
+            {
+                "base_url": base_url,
+                "primary_goal": "Find pages with people/staff profiles.",
+                "budget": budget,
+                "links": links[:80],
+            },
             ensure_ascii=False,
         ),
         max_tokens=1000,
@@ -172,12 +184,18 @@ def extract_from_page_text(text: str, url: str, existing: dict | None = None) ->
     if not compact:
         return {}
     data = _json_prompt(
-        "Extract organization data from webpage text. Use only facts present in the text. "
+        "Extract organization and people data from webpage text. Use only facts present in the text. "
+        "Focus HEAVILY on extracting people's data (names, positions, emails, phone numbers). "
         "Return JSON only with keys: name, description, emails, phones, address, city, country, "
-        "social, people. people is an array of {name, position, email, phone, profile_url}. "
+        "social, people. 'people' is an array of {name, position, email, phone, profile_url}. "
         "Use empty strings/arrays/objects when unknown.",
         json.dumps(
-            {"url": url, "existing": existing or {}, "text": compact},
+            {
+                "url": url,
+                "primary_goal": "Extract as many team members, staff, and contacts as possible.",
+                "existing": existing or {},
+                "text": compact,
+            },
             ensure_ascii=False,
         ),
         max_tokens=1600,
@@ -209,11 +227,10 @@ def validate_entity_record(
     summary = dict(record)
     summary.pop("pages", None)
     data = _json_prompt(
-        "You validate whether a scraped organization/entity record matches a user's search request. "
-        "Accept companies, establishments, schools, institutions, universities, academies, or other entities "
-        "only when they are relevant to the requested category/location/topic. Reject adult, gaming, unrelated, "
-        "directory-only, job-board, social-network, or article results. Do not require every contact field to be present. "
-        "Return JSON only: {\"relevant\": true|false, \"reason\": \"short explanation\"}.",
+        "You validate whether a scraped entity record matches a user's search request. "
+        "You MUST ACCEPT any valid official entity (company, institution, school, etc.) that matches the user's query, EVEN IF no staff or people were found during the scrape. "
+        "ONLY reject adult, gaming, completely unrelated topics, directories, job boards, social networks, or news articles. "
+        'Return JSON only: {"relevant": true|false, "reason": "short explanation"}.',
         json.dumps(
             {
                 "query": query,
