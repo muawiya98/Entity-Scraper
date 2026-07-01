@@ -8,9 +8,8 @@ from urllib.parse import urlparse
 AR_RE = re.compile(r"[\u0600-\u06ff]")
 TOKEN_RE = re.compile(r"[\w\u0600-\u06ff]+", re.UNICODE)
 
-# Second-level labels that should never be treated as target entity websites.
+
 BLOCKED_DOMAIN_LABELS = {
-    # Social/search/directory/general platforms.
     "facebook",
     "twitter",
     "x",
@@ -82,7 +81,6 @@ BLOCKED_DOMAIN_LABELS = {
     "microsoftonline",
     "skype",
     "bingplaces",
-    # Game/esports false positives and adult/inappropriate domains.
     "lol",
     "leagueoflegends",
     "liquipedia",
@@ -208,26 +206,53 @@ ENTITY_HINTS = {
     "استشارية",
 }
 
-# --------------------------------------------------------------------------- #
-# People-data requirement
-# --------------------------------------------------------------------------- #
-# Every search exists to extract *people's* data — names paired with their
-# positions, phone numbers, e-mail addresses, or other personal details.  This
-# requirement is attached to the query at every stage (search variants,
-# ranking, relevance scoring, crawling, and the final return gate) so the whole
-# system pulls in the same direction.
 
-# Words that mark a page/section as likely to list people and their contacts.
 PEOPLE_HINTS = {
-    # English
-    "team", "our team", "staff", "people", "leadership", "management",
-    "board", "directors", "director", "employees", "employee", "members",
-    "member", "founder", "founders", "officers", "executives", "executive",
-    "personnel", "who we are", "meet the team", "contact",
-    # Arabic
-    "فريق", "الفريق", "فريقنا", "طاقم", "الكادر", "كادر", "موظفون", "موظفين",
-    "الموظفين", "الإدارة", "ادارة", "إدارة", "مجلس الإدارة", "مجلس", "أعضاء",
-    "اعضاء", "عضو", "القيادة", "هيئة", "الهيئة", "من نحن", "تواصل", "اتصل",
+    "team",
+    "our team",
+    "staff",
+    "people",
+    "leadership",
+    "management",
+    "board",
+    "directors",
+    "director",
+    "employees",
+    "employee",
+    "members",
+    "member",
+    "founder",
+    "founders",
+    "officers",
+    "executives",
+    "executive",
+    "personnel",
+    "who we are",
+    "meet the team",
+    "contact",
+    "فريق",
+    "الفريق",
+    "فريقنا",
+    "طاقم",
+    "الكادر",
+    "كادر",
+    "موظفون",
+    "موظفين",
+    "الموظفين",
+    "الإدارة",
+    "ادارة",
+    "إدارة",
+    "مجلس الإدارة",
+    "مجلس",
+    "أعضاء",
+    "اعضاء",
+    "عضو",
+    "القيادة",
+    "هيئة",
+    "الهيئة",
+    "من نحن",
+    "تواصل",
+    "اتصل",
 }
 
 EN_STOPWORDS = {
@@ -382,8 +407,7 @@ def query_profile(query: str, location: str = "", entity_type: str = "") -> dict
     location_terms = tokens(location)
     type_terms = tokens(entity_type)
     if not location_terms:
-        # Let explicit "in Riyadh" / "في الرياض" location tokens still matter
-        # through ordinary query coverage rather than brittle parsing.
+
         location_terms = []
     return {
         "arabic": has_arabic(combined),
@@ -415,7 +439,7 @@ def relevance_score(
     entity_type: str = "",
 ) -> int:
     profile = query_profile(query, location, entity_type)
-    text = f"{title} {snippet} {domain}"
+    text = f"{title } {snippet } {domain }"
     text_low = text.lower()
     text_terms = set(tokens(text_low))
     domain_terms = set(tokens(domain.replace(".", " ").replace("-", " ")))
@@ -426,8 +450,7 @@ def relevance_score(
         covered = [t for t in query_terms if t in text_terms or t in domain_terms]
         if not covered:
             return -10
-        # if len(query_terms) >= 3 and len(covered) < 2:
-        #     return -10
+
         score += len(covered) * 4
         coverage = len(covered) / max(1, len(query_terms))
         if coverage >= 0.75:
@@ -447,15 +470,12 @@ def relevance_score(
         score += 2
     if any(normalize_token(t) in text_terms for t in ENTITY_HINTS):
         score += 2
-    # The query is about extracting people's data, so reward team / staff /
-    # leadership / contact pages that are likely to carry it.
+
     if contains_any(text_low, PEOPLE_HINTS):
         score += 3
     if profile["arabic"] and has_arabic(text):
         score += 2
 
-    # A country-code TLD is useful only when the query/location mentions it
-    # implicitly through matching text; do not hardcode one country/category.
     tld = domain.rsplit(".", 1)[-1] if "." in domain else ""
     if len(tld) == 2 and any(t in text_terms for t in query_terms):
         score += 1
@@ -466,13 +486,7 @@ def relevance_score(
 
 
 def minimum_score(query: str, location: str = "", entity_type: str = "") -> int:
-    # profile = query_profile(query, location, entity_type)
-    # term_count = len(profile["query_terms"] or profile["all_terms"])
-    # if location or entity_type:
-    #     return 5
-    # if term_count >= 3:
-    #     return 4
-    # return 3
+
     return 1
 
 
@@ -510,12 +524,12 @@ def record_relevance_score(
         entity_type=entity_type,
     )
 
-    # Boost score significantly if people data was extracted
     num_people = len(record.get("people") or [])
     if num_people > 0:
-        score += min(num_people * 2, 10)  # Up to 10 points bonus
+        score += min(num_people * 2, 10)
 
     return score
+
 
 def record_is_relevant(
     record: dict,

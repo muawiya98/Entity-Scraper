@@ -1,4 +1,4 @@
-/* Bilingual (English / Arabic) UI strings and language switching. */
+
 const I18N = {
   en: {
     app_title: "Entity Scraper",
@@ -153,7 +153,7 @@ function applyTranslations() {
     btn.classList.toggle("active", btn.dataset.lang === CURRENT_LANG);
   });
 
-  // Let page-specific code re-render dynamic content.
+  
   document.dispatchEvent(new CustomEvent("langchange", { detail: { lang: CURRENT_LANG } }));
 }
 

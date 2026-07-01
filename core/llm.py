@@ -63,7 +63,7 @@ def _json_prompt(system: str, user: str, *, max_tokens: int = 1200) -> Any | Non
         resp.raise_for_status()
         content = resp.json()["choices"][0]["message"]["content"]
         return _loads_json(content)
-    except Exception as exc:  # noqa: BLE001 - optional best-effort layer
+    except Exception as exc:
         log.warning("LLM call failed: %s", exc)
         return None
 
@@ -87,7 +87,7 @@ def query_variants(query: str, location: str = "", entity_type: str = "") -> lis
         "You create concise web search queries whose goal is to extract the PEOPLE behind "
         "an entity — their names, positions/job titles, phone numbers and e-mail addresses. "
         "Target official team, staff, leadership, board and contact pages. "
-        "Return JSON only: {\"queries\": [\"...\"]}. Prefer official websites over directories.",
+        'Return JSON only: {"queries": ["..."]}. Prefer official websites over directories.',
         json.dumps(
             {
                 "query": query,
@@ -124,7 +124,7 @@ def rank_search_results(
         "details, plus official websites and contact pages for schools, companies, "
         "institutions, universities and academies. "
         "Avoid directories, job boards, social networks, login pages, and generic articles. "
-        "Return JSON only: {\"urls\": [\"https://...\"]}.",
+        'Return JSON only: {"urls": ["https://..."]}.',
         json.dumps(
             {
                 "query": query,

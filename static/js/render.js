@@ -1,4 +1,4 @@
-/* Shared rendering helpers for entity results (used by index & results pages). */
+
 
 function esc(s) {
   if (s === null || s === undefined) return "";

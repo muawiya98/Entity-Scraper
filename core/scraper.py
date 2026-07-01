@@ -63,26 +63,25 @@ class SiteScraper:
         )
         self._robots: dict[str, RobotFileParser] = {}
 
-    # ----------------------------------------------------------------- #
     def _allowed(self, url: str) -> bool:
         if not config.RESPECT_ROBOTS:
             return True
         parsed = urlparse(url)
-        root = f"{parsed.scheme}://{parsed.netloc}"
+        root = f"{parsed .scheme }://{parsed .netloc }"
         rp = self._robots.get(root)
         if rp is None:
             rp = RobotFileParser()
             rp.set_url(urljoin(root, "/robots.txt"))
             try:
                 rp.read()
-            except Exception:  # noqa: BLE001 - missing robots = allow
+            except Exception:
                 rp = None
             self._robots[root] = rp
         if rp is None:
             return True
         try:
             return rp.can_fetch(config.USER_AGENT, url)
-        except Exception:  # noqa: BLE001
+        except Exception:
             return True
 
     def _fetch(self, url: str) -> tuple[str | None, int]:
@@ -112,17 +111,11 @@ class SiteScraper:
         found: dict[str, str] = {}
         candidates: list[dict[str, str]] = []
 
-        # for a in soup.find_all("a", href=True):
-        #     href = a["href"].strip()
-        #     if href.startswith(("#", "mailto:", "tel:", "javascript:")):
-        #         continue
-        #     full = urljoin(base_url, href)
         for a in soup.find_all("a", href=True):
             href = a["href"].strip()
             if href.startswith(("#", "mailto:", "tel:", "javascript:")):
                 continue
 
-            # فلترة ذكية مستوحاة من الكود الخاص بك لتجاهل الروابط غير المفيدة
             skip_keywords = [
                 "news",
                 "careers",
@@ -163,7 +156,6 @@ class SiteScraper:
                     found[page_type] = url
         return found
 
-    # ----------------------------------------------------------------- #
     def scrape(self, start_url: str) -> dict | None:
         """Scrape a website and return a merged entity record (or None)."""
         if not start_url.startswith(("http://", "https://")):
@@ -174,7 +166,7 @@ class SiteScraper:
 
         html, status = self._fetch(start_url)
         if not html:
-            # Retry once over http if https failed.
+
             if start_url.startswith("https://"):
                 html, status = self._fetch("http://" + start_url[len("https://") :])
             if not html:
@@ -183,7 +175,6 @@ class SiteScraper:
         final_domain = urlparse(start_url).netloc.replace("www.", "")
         pages_visited = [{"url": start_url, "page_type": "home", "status_code": status}]
 
-        # Merge containers.
         record = {
             "name": "",
             "website": start_url,
@@ -225,7 +216,6 @@ class SiteScraper:
 
         _merge(extractor.parse_page(html, start_url, self.region))
 
-        # Crawl the most relevant internal pages.
         internal = self._find_internal_pages(start_url, html)
         budget = max(0, config.MAX_PAGES_PER_SITE - 1)
         for page_type, url in list(internal.items())[:budget]:
@@ -237,7 +227,6 @@ class SiteScraper:
             if sub_html:
                 _merge(extractor.parse_page(sub_html, url, self.region))
 
-        # De-duplicate people again across pages (by lower-cased name).
         merged_people: dict[str, dict] = {}
         for p in record["people"]:
             if not p.get("name"):

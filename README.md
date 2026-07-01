@@ -2,7 +2,7 @@
 
 A bilingual (English / العربية) web application that takes a search request about
 **companies, institutions, schools, academies, universities, or any other
-entity** (e.g. *real estate companies in Riyadh*), finds the relevant websites,
+entity**, finds the relevant websites,
 and automatically extracts:
 
 - Entity / organisation **name**
@@ -11,23 +11,23 @@ and automatically extracts:
 - **People** and their **positions** (CEO, Director, Founder, مدير, …)
 - **Address**, **description**, and **social media** links
 
-Results are stored in a local **SQLite database** *and* exported as **JSON files**.
+Results are stored in a local **SQLite database** _and_ exported as **JSON files**.
 
 ---
 
 ## ✨ Features
 
-| | |
-|---|---|
-| 🌐 Web UI | Clean, professional Flask interface — runs in your browser |
-| 🗣️ Bilingual | Full English / Arabic UI with automatic RTL layout |
-| 🔍 Smart search | Query-aware relevance scoring, safety filtering, free **DuckDuckGo**, optional **Google API** / **SerpAPI** keys |
-| 🤖 Optional LLM assist | Uses an OpenAI-compatible model when a key is supplied; otherwise stays fully rule-based |
-| 🕷️ Deep scrape | Visits the homepage **plus** contact / about / team pages |
-| 🧠 Extraction | schema.org JSON-LD + heuristics for people, phones, emails |
-| 💾 Storage | SQLite database (`data/entities.db`) + JSON (`data/json/`) |
-| 📊 History | Browse, re-open, export, and delete past searches |
-| ⚡ Live progress | Real-time progress bar while sites are scraped |
+|                        |                                                                                                                  |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 🌐 Web UI              | Clean, professional Flask interface — runs in your browser                                                       |
+| 🗣️ Bilingual           | Full English / Arabic UI with automatic RTL layout                                                               |
+| 🔍 Smart search        | Query-aware relevance scoring, safety filtering, free **DuckDuckGo**, optional **Google API** / **SerpAPI** keys |
+| 🤖 Optional LLM assist | Uses an OpenAI-compatible model when a key is supplied; otherwise stays fully rule-based                         |
+| 🕷️ Deep scrape         | Visits the homepage **plus** contact / about / team pages                                                        |
+| 🧠 Extraction          | schema.org JSON-LD + heuristics for people, phones, emails                                                       |
+| 💾 Storage             | SQLite database (`data/entities.db`) + JSON (`data/json/`)                                                       |
+| 📊 History             | Browse, re-open, export, and delete past searches                                                                |
+| ⚡ Live progress       | Real-time progress bar while sites are scraped                                                                   |
 
 ---
 
@@ -89,12 +89,12 @@ to DuckDuckGo.
 The core pipeline works without any LLM key. If you provide an OpenAI-compatible
 API key, the app adds LLM help after the deterministic steps:
 
-| Stage | What the LLM can do |
-|---|---|
-| Search | Rank/filter raw search results and generate backup search queries if the first search is weak |
-| Scrape | Pick useful internal pages when keyword matching misses contact/about/team links |
-| Extract | Read visible page text as a fallback to find names, positions, phones, emails, addresses, and social links |
-| Normalize | Clean the final merged record, remove duplicates, and standardize people/position fields |
+| Stage     | What the LLM can do                                                                                        |
+| --------- | ---------------------------------------------------------------------------------------------------------- |
+| Search    | Rank/filter raw search results and generate backup search queries if the first search is weak              |
+| Scrape    | Pick useful internal pages when keyword matching misses contact/about/team links                           |
+| Extract   | Read visible page text as a fallback to find names, positions, phones, emails, addresses, and social links |
+| Normalize | Clean the final merged record, remove duplicates, and standardize people/position fields                   |
 
 Add this to `.env`:
 
@@ -142,21 +142,21 @@ shows live progress.
 
 ## ⚙️ Configuration reference (`.env`)
 
-| Variable | Default | Description |
-|---|---|---|
-| `SEARCH_BACKEND` | `duckduckgo` | `duckduckgo` \| `google` \| `serpapi` |
-| `GOOGLE_API_KEY` / `GOOGLE_CSE_ID` | — | Google Programmable Search |
-| `SERPAPI_KEY` | — | SerpAPI key |
-| `LLM_ENABLED` | `true` | Enables LLM assist when a key is present |
-| `OPENAI_API_KEY` / `LLM_API_KEY` | — | Optional OpenAI-compatible model key |
-| `LLM_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible API base URL |
-| `LLM_MODEL` | `gpt-4.1-mini` | Model used for optional assists |
-| `LLM_MAX_PAGE_CHARS` | `9000` | Max visible page text sent per page |
-| `DEFAULT_REGION` | `SA` | ISO country for phone parsing & search bias |
-| `MAX_PAGES_PER_SITE` | `6` | Pages crawled per website |
-| `REQUEST_TIMEOUT` | `15` | HTTP timeout (seconds) |
-| `REQUEST_DELAY` | `0.5` | Delay between requests to one site |
-| `RESPECT_ROBOTS` | `true` | Obey `robots.txt` |
+| Variable                           | Default                     | Description                                 |
+| ---------------------------------- | --------------------------- | ------------------------------------------- |
+| `SEARCH_BACKEND`                   | `duckduckgo`                | `duckduckgo` \| `google` \| `serpapi`       |
+| `GOOGLE_API_KEY` / `GOOGLE_CSE_ID` | —                           | Google Programmable Search                  |
+| `SERPAPI_KEY`                      | —                           | SerpAPI key                                 |
+| `LLM_ENABLED`                      | `true`                      | Enables LLM assist when a key is present    |
+| `OPENAI_API_KEY` / `LLM_API_KEY`   | —                           | Optional OpenAI-compatible model key        |
+| `LLM_BASE_URL`                     | `https://api.openai.com/v1` | OpenAI-compatible API base URL              |
+| `LLM_MODEL`                        | `gpt-4.1-mini`              | Model used for optional assists             |
+| `LLM_MAX_PAGE_CHARS`               | `9000`                      | Max visible page text sent per page         |
+| `DEFAULT_REGION`                   | `SA`                        | ISO country for phone parsing & search bias |
+| `MAX_PAGES_PER_SITE`               | `6`                         | Pages crawled per website                   |
+| `REQUEST_TIMEOUT`                  | `15`                        | HTTP timeout (seconds)                      |
+| `REQUEST_DELAY`                    | `0.5`                       | Delay between requests to one site          |
+| `RESPECT_ROBOTS`                   | `true`                      | Obey `robots.txt`                           |
 
 ---
 
@@ -180,15 +180,3 @@ entity-scraper/
 ├── static/                # CSS + JS (bilingual UI)
 └── data/                  # SQLite DB + JSON exports (auto-created)
 ```
-
----
-
-## ⚠️ Responsible use
-
-This tool is for collecting **publicly available** business contact
-information. Please:
-
-- Respect each website's `robots.txt` and terms of service (enabled by default).
-- Keep request volume polite (`REQUEST_DELAY`).
-- Comply with applicable data-protection / privacy laws when storing and using
-  personal data (names, emails, phone numbers).

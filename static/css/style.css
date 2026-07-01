@@ -32,7 +32,7 @@ body {
   flex-direction: column;
 }
 
-/* ---------- Top bar ---------- */
+
 .topbar {
   display: flex;
   align-items: center;
@@ -55,16 +55,16 @@ body {
 }
 .lang-btn.active { background: var(--primary); color: #fff; }
 
-/* ---------- Layout ---------- */
+
 .container { flex: 1; width: 100%; max-width: 1080px; margin: 0 auto; padding: 32px 24px 48px; }
 .footer { text-align: center; padding: 20px; color: var(--text-soft); font-size: 13px; }
 
-/* ---------- Hero ---------- */
+
 .hero { margin-bottom: 26px; }
 .hero h1 { font-size: 30px; margin: 0 0 8px; letter-spacing: -.4px; }
 .hero p { margin: 0; color: var(--text-soft); font-size: 16px; max-width: 720px; line-height: 1.55; }
 
-/* ---------- Card ---------- */
+
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -74,7 +74,7 @@ body {
   margin-bottom: 22px;
 }
 
-/* ---------- Form ---------- */
+
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field.full { grid-column: 1 / -1; }
@@ -105,7 +105,7 @@ body {
 .btn-sm { padding: 7px 14px; font-size: 13px; }
 .form-actions { margin-top: 20px; display: flex; gap: 12px; align-items: center; }
 
-/* ---------- Backends ---------- */
+
 .backends { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 .backend-pill {
   display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px;
@@ -115,7 +115,7 @@ body {
 .dot.on { background: var(--success); }
 .backends-label { font-size: 13px; color: var(--text-soft); font-weight: 600; margin-bottom: 2px; }
 
-/* ---------- Progress ---------- */
+
 .progress-wrap { display: none; }
 .progress-wrap.show { display: block; }
 .progress-bar { height: 12px; background: var(--border); border-radius: 999px; overflow: hidden; margin: 10px 0 8px; }
@@ -127,7 +127,7 @@ body {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ---------- Results / entity cards ---------- */
+
 .results-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .results-head h2 { margin: 0; font-size: 22px; }
 .entity { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 14px; background: #fff; overflow: hidden; transition: box-shadow .15s; }
@@ -169,7 +169,7 @@ html[dir="rtl"] .entity.open .chevron { transform: rotate(-90deg); }
 .social-links { display: flex; gap: 8px; flex-wrap: wrap; }
 .social-links a { font-size: 13px; padding: 5px 11px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border); text-decoration: none; color: var(--text); text-transform: capitalize; }
 
-/* ---------- History table ---------- */
+
 .table { width: 100%; border-collapse: collapse; background: #fff; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .table th, .table td { padding: 13px 16px; text-align: start; font-size: 14px; border-bottom: 1px solid var(--border); }
 .table th { background: var(--surface-2); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-soft); }

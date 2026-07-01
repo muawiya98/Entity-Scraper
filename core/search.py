@@ -10,6 +10,7 @@ supported:
 The public entry point is :func:`search_websites`, which picks the best
 available backend and gracefully falls back to DuckDuckGo on failure.
 """
+
 from __future__ import annotations
 
 import logging
@@ -20,6 +21,7 @@ from config import config
 from core import llm, safety
 
 log = logging.getLogger(__name__)
+
 
 @dataclass
 class SearchResult:
@@ -42,7 +44,7 @@ def _should_skip(domain: str) -> bool:
 
 def _build_query(query: str, location: str, entity_type: str) -> str:
     parts = [p.strip() for p in (entity_type, query, location) if p and p.strip()]
-    # Avoid duplicating words already present in the free-text query.
+
     seen, ordered = set(), []
     for part in parts:
         key = part.lower()
@@ -57,52 +59,50 @@ def _query_variants(query: str, location: str, entity_type: str) -> list[str]:
     base = _build_query(query, location, entity_type)
     variants = [
         base,
-        f"{base} official website",
-        f"{base} contact",
-        f"{base} about",
+        f"{base } official website",
+        f"{base } contact",
+        f"{base } about",
     ]
 
     if entity_type:
         variants.extend(
             [
-                f"{query} {entity_type} official website",
-                f"{entity_type} {query} contact",
+                f"{query } {entity_type } official website",
+                f"{entity_type } {query } contact",
             ]
         )
     if location:
         variants.extend(
             [
-                f"{query} {location} official website",
-                f"{query} {location} contact",
+                f"{query } {location } official website",
+                f"{query } {location } contact",
             ]
         )
 
     if safety.has_arabic(base):
         variants.extend(
             [
-                f"{base} الموقع الرسمي",
-                f"{base} اتصل بنا",
-                f"{base} تواصل",
-                f"{base} من نحن",
-                # People-data focus: surface team / staff / leadership + contacts.
-                f"{base} فريق العمل",
-                f"{base} الإدارة",
-                f"{base} أعضاء مجلس الإدارة",
-                f"{base} طاقم العمل",
-                f"{base} تواصل البريد الإلكتروني والهاتف",
+                f"{base } الموقع الرسمي",
+                f"{base } اتصل بنا",
+                f"{base } تواصل",
+                f"{base } من نحن",
+                f"{base } فريق العمل",
+                f"{base } الإدارة",
+                f"{base } أعضاء مجلس الإدارة",
+                f"{base } طاقم العمل",
+                f"{base } تواصل البريد الإلكتروني والهاتف",
             ]
         )
     else:
         variants.extend(
             [
-                f"{base} company website",
-                f"{base} organization website",
-                # People-data focus: surface team / staff / leadership + contacts.
-                f"{base} team",
-                f"{base} staff",
-                f"{base} leadership team",
-                f"{base} board of directors",
-                f"{base} contact people email phone",
+                f"{base } company website",
+                f"{base } organization website",
+                f"{base } team",
+                f"{base } staff",
+                f"{base } leadership team",
+                f"{base } board of directors",
+                f"{base } contact people email phone",
             ]
         )
 
@@ -174,13 +174,25 @@ def _llm_rank(
     return _dedupe(ranked + leftovers, max_results, query, location, entity_type)
 
 
-# --------------------------------------------------------------------------- #
-# Backends
-# --------------------------------------------------------------------------- #
-# Arabic-speaking countries, used to guess the ddgs region language suffix.
 _ARABIC_COUNTRIES = {
-    "SA", "AE", "EG", "QA", "KW", "BH", "OM", "JO", "MA", "DZ", "TN",
-    "LY", "YE", "SD", "IQ", "LB", "PS", "SY",
+    "SA",
+    "AE",
+    "EG",
+    "QA",
+    "KW",
+    "BH",
+    "OM",
+    "JO",
+    "MA",
+    "DZ",
+    "TN",
+    "LY",
+    "YE",
+    "SD",
+    "IQ",
+    "LB",
+    "PS",
+    "SY",
 }
 
 
@@ -193,16 +205,18 @@ def _region_codes(region: str) -> list[str]:
     """
     cc = region.lower()
     lang = "ar" if region in _ARABIC_COUNTRIES else "en"
-    codes = [f"{cc}-{lang}"]
+    codes = [f"{cc }-{lang }"]
     if "wt-wt" not in codes:
         codes.append("wt-wt")
     return codes
 
 
-def _ddgs_query(query: str, region_code: str, count: int, retries: int = 2) -> list[SearchResult]:
+def _ddgs_query(
+    query: str, region_code: str, count: int, retries: int = 2
+) -> list[SearchResult]:
     import time
 
-    from ddgs import DDGS  # imported lazily so the app starts even if absent
+    from ddgs import DDGS
 
     for attempt in range(retries + 1):
         results: list[SearchResult] = []
@@ -228,10 +242,12 @@ def _ddgs_query(query: str, region_code: str, count: int, retries: int = 2) -> l
                     )
             if results:
                 return results
-        except Exception as exc:  # noqa: BLE001 - transient throttling / network
-            log.warning("ddgs attempt %s failed (%s): %s", attempt + 1, region_code, exc)
+        except Exception as exc:
+            log.warning(
+                "ddgs attempt %s failed (%s): %s", attempt + 1, region_code, exc
+            )
         if attempt < retries:
-            time.sleep(1.5 * (attempt + 1))  # gentle back-off before retrying
+            time.sleep(1.5 * (attempt + 1))
     return []
 
 
@@ -239,8 +255,8 @@ def _search_duckduckgo(query: str, region: str, count: int) -> list[SearchResult
     last: list[SearchResult] = []
     for region_code in _region_codes(region):
         results = _ddgs_query(query, region_code, count)
-        print(f"Found {len(results)} results for search {query} ({region_code})")
-        # Keep going only if this region produced no usable (non-skipped) hits.
+        print(f"Found {len (results )} results for search {query } ({region_code })")
+
         if any(not _should_skip(r.domain) for r in results):
             return results
         last = results or last
@@ -249,7 +265,7 @@ def _search_duckduckgo(query: str, region: str, count: int) -> list[SearchResult
 
 def _search_google(query: str, count: int) -> list[SearchResult]:
     results: list[SearchResult] = []
-    # Google CSE returns max 10 per call; page through up to 30.
+
     for start in range(1, min(count * 3, 30), 10):
         resp = requests.get(
             "https://www.googleapis.com/customsearch/v1",
@@ -304,9 +320,6 @@ def _search_serpapi(query: str, count: int) -> list[SearchResult]:
     ]
 
 
-# --------------------------------------------------------------------------- #
-# Public entry point
-# --------------------------------------------------------------------------- #
 def search_websites(
     query: str,
     location: str = "",
@@ -319,7 +332,6 @@ def search_websites(
     backend = config.SEARCH_BACKEND
     available = config.available_backends()
 
-    # Choose an order: requested backend first (if usable), DuckDuckGo last.
     order = []
     if available.get(backend):
         order.append(backend)
@@ -331,21 +343,22 @@ def search_websites(
             order.append(fallback)
 
     last_error: Exception | None = None
+
     def _run_one(search_query: str) -> list[SearchResult]:
         nonlocal last_error
         raw: list[SearchResult] = []
         for name in order:
             try:
-                #log.info("Searching via %s: %s", name, search_query)
+
                 if name == "google":
                     raw.extend(_search_google(search_query, max_results))
                 elif name == "serpapi":
                     raw.extend(_search_serpapi(search_query, max_results))
                 else:
                     raw.extend(_search_duckduckgo(search_query, region, max_results))
-            except Exception as exc:  # noqa: BLE001 - we deliberately fall back
+            except Exception as exc:
                 last_error = exc
-                #log.warning("Backend %s failed: %s", name, exc)
+
         return _llm_rank(raw, query, location, entity_type, max_results)
 
     collected: list[SearchResult] = []
@@ -358,12 +371,6 @@ def search_websites(
             seen_domains.add(result.domain)
             collected.append(result)
 
-    # deterministic_variants = _query_variants(query, location, entity_type)
-    # for variant in deterministic_variants:
-    #     _add(_run_one(variant))
-    #     if len(collected) >= max_results:
-    #         return collected[:max_results]
-        
     variants_to_try = _query_variants(query, location, entity_type)
     if llm.enabled():
         known_variants = {q.lower() for q in variants_to_try}
@@ -382,20 +389,3 @@ def search_websites(
     if last_error:
         log.error("All search backends failed: %s", last_error)
     return []
-        
-
-    # if llm.enabled():
-    #     known_variants = {q.lower() for q in deterministic_variants}
-    #     for variant in llm.query_variants(query, location, entity_type):
-    #         if variant.lower() in known_variants:
-    #             continue
-    #         _add(_run_one(variant))
-    #         if len(collected) >= max_results:
-    #             return collected[:max_results]
-
-    # if collected:
-    #     return collected[:max_results]
-
-    # if last_error:
-    #     log.error("All search backends failed: %s", last_error)
-    # return []

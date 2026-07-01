@@ -1,4 +1,4 @@
-/* Search page logic: submit form, poll progress, render results live. */
+
 (function () {
   const form = document.getElementById("search-form");
   if (!form) return;
@@ -92,7 +92,7 @@
     if (spinner) spinner.style.display = busy ? "inline-block" : "none";
   }
 
-  // Re-render dynamic results when the language changes.
+  
   document.addEventListener("langchange", () => {
     if (currentEntities.length) {
       renderResults(resultsArea, currentEntities, { searchId: currentSearchId });
