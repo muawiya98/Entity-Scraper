@@ -184,11 +184,14 @@ def extract_from_page_text(text: str, url: str, existing: dict | None = None) ->
     if not compact:
         return {}
     data = _json_prompt(
-        "Extract organization and people data from webpage text. Use only facts present in the text. "
-        "Focus HEAVILY on extracting people's data (names, positions, emails, phone numbers). "
-        "Return JSON only with keys: name, description, emails, phones, address, city, country, "
-        "social, people. 'people' is an array of {name, position, email, phone, profile_url}. "
-        "Use empty strings/arrays/objects when unknown.",
+        "You are a highly precise data extraction assistant. Extract organization details and employee/staff/team profiles from the provided webpage text.\n"
+        "Rules:\n"
+        "1. Focus HEAVILY on finding people (staff, leadership, doctors, teachers, board members).\n"
+        "2. For each person, find their full name, job title/position, email, and phone number if available.\n"
+        "3. Do NOT invent or guess data. Use ONLY facts present in the text.\n"
+        "4. Output must be strictly JSON with keys: name, description, emails (array of strings), phones (array of strings), address, city, country, social (object mapping platform to URL), and people.\n"
+        '5. The \'people\' key must be an array of objects: {"name": "", "position": "", "email": "", "phone": "", "profile_url": ""}.\n'
+        "If a field is missing, leave it as an empty string.",
         json.dumps(
             {
                 "url": url,
@@ -208,14 +211,17 @@ def enhance_entity_record(record: dict) -> dict:
     summary = dict(record)
     summary.pop("pages", None)
     data = _json_prompt(
-        "Clean and normalize this scraped organization record without inventing facts. "
-        "Prefer official names, remove duplicate contacts, normalize people positions, and keep Arabic text. "
-        "Return JSON only using the same keys supplied.",
+        "You are an expert data cleaner. Clean, deduplicate, and normalize this scraped organization record.\n"
+        "Rules:\n"
+        "1. Do NOT invent any new information or facts. Only clean what is provided.\n"
+        "2. Remove duplicated people, emails, or phones.\n"
+        "3. Standardize job titles (positions) if they are messy, but keep the original meaning.\n"
+        "4. Preserve all Arabic text perfectly without changing names.\n"
+        "5. Return JSON only, keeping the exact same structure and keys supplied.",
         json.dumps(summary, ensure_ascii=False),
         max_tokens=1600,
     )
     return data if isinstance(data, dict) else {}
-
 
 def validate_entity_record(
     record: dict,

@@ -33,11 +33,12 @@ def run_pipeline(search_id: int) -> None:
             search_id, status="running", progress=2, message="Searching the web…"
         )
 
+        fetch_limit = max(max_results * 3, 30)
         results = search_websites(
             query=query,
             location=location,
             entity_type=entity_type,
-            max_results=max_results,
+            max_results=fetch_limit,
             region=config.DEFAULT_REGION,
         )
 
@@ -56,18 +57,19 @@ def run_pipeline(search_id: int) -> None:
         database.update_search(
             search_id,
             progress=10,
-            message=f"Found {len (results )} websites. Visiting each…",
+            message=f"Found {len(results)} websites. Visiting each…",
         )
 
         scraper = SiteScraper(region=config.DEFAULT_REGION)
         total = len(results)
-        stored = 0
+
+        scraped_records = []
 
         for index, result in enumerate(results, start=1):
             database.update_search(
                 search_id,
-                progress=10 + int(85 * index / total),
-                message=f"Scraping {index }/{total }: {result .domain }",
+                progress=10 + int(80 * index / total),
+                message=f"Scraping {index}/{total}: {result.domain}",
             )
             try:
                 record = scraper.scrape(result.url)
@@ -102,6 +104,7 @@ def run_pipeline(search_id: int) -> None:
                     location=location,
                     entity_type=entity_type,
                 )
+
                 if not safety.record_is_relevant(
                     record,
                     query=query,
@@ -114,6 +117,7 @@ def run_pipeline(search_id: int) -> None:
                 if not safety.has_people_data(record):
                     log.info("Skipping record with no people data: %s", result.url)
                     continue
+
                 if llm.enabled():
                     verdict = llm.validate_entity_record(
                         record, query, location, entity_type
@@ -129,15 +133,28 @@ def run_pipeline(search_id: int) -> None:
                                 verdict.get("reason"),
                             )
                             continue
-                database.insert_entity(search_id, record)
-                stored += 1
+
+                scraped_records.append(record)
+
+        scraped_records.sort(
+            key=lambda r: (
+                len(r.get("people", [])),
+                r.get("meta", {}).get("relevance_score", 0),
+            ),
+            reverse=True,
+        )
+
+        stored = 0
+        for record in scraped_records[:max_results]:
+            database.insert_entity(search_id, record)
+            stored += 1
 
         path = exporter.export_search(search_id)
         database.update_search(
             search_id,
             status="completed",
             progress=100,
-            message=f"Done. {stored } entities saved. JSON: {path }",
+            message=f"Done. {stored} entities saved. JSON: {path}",
             results_count=stored,
             completed_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         )

@@ -255,7 +255,7 @@ def _search_duckduckgo(query: str, region: str, count: int) -> list[SearchResult
     last: list[SearchResult] = []
     for region_code in _region_codes(region):
         results = _ddgs_query(query, region_code, count)
-        print(f"Found {len (results )} results for search {query } ({region_code })")
+        log.info(f"Found {len (results )} results for search {query } ({region_code })")
 
         if any(not _should_skip(r.domain) for r in results):
             return results

@@ -55,7 +55,7 @@ class Config:
     LLM_TIMEOUT: int = int(os.getenv("LLM_TIMEOUT", "45"))
     LLM_MAX_PAGE_CHARS: int = int(os.getenv("LLM_MAX_PAGE_CHARS", "9000"))
 
-    DEFAULT_REGION: str = os.getenv("DEFAULT_REGION", "SA").strip().upper()
+    DEFAULT_REGION: str = os.getenv("DEFAULT_REGION", "WT-WT").strip().upper()
     MAX_PAGES_PER_SITE: int = int(os.getenv("MAX_PAGES_PER_SITE", "6"))
     REQUEST_TIMEOUT: int = int(os.getenv("REQUEST_TIMEOUT", "15"))
     REQUEST_DELAY: float = float(os.getenv("REQUEST_DELAY", "0.5"))
