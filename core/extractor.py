@@ -244,12 +244,14 @@ def extract_emails(soup: BeautifulSoup, text: str) -> list[str]:
     return cleaned
 
 
-def extract_phones(soup: BeautifulSoup, text: str, region: str = "SA") -> list[str]:
+def extract_phones(soup: BeautifulSoup, text: str, region: str = "WT-WT") -> list[str]:
     found: list[str] = []
+
+    phone_region = None if region == "WT-WT" else region
 
     def _add(raw: str) -> None:
         try:
-            for match in phonenumbers.PhoneNumberMatcher(raw, region):
+            for match in phonenumbers.PhoneNumberMatcher(raw, phone_region):
                 num = phonenumbers.format_number(
                     match.number, phonenumbers.PhoneNumberFormat.INTERNATIONAL
                 )

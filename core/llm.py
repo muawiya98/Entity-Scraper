@@ -178,25 +178,22 @@ def select_relevant_links(base_url: str, links: list[dict], budget: int) -> list
 
 
 def extract_from_page_text(text: str, url: str, existing: dict | None = None) -> dict:
-    """Backup extraction from visible page text."""
     compact = "\n".join(line.strip() for line in text.splitlines() if line.strip())
     compact = compact[: config.LLM_MAX_PAGE_CHARS]
     if not compact:
         return {}
     data = _json_prompt(
-        "You are a highly precise data extraction assistant. Extract organization details and employee/staff/team profiles from the provided webpage text.\n"
+        "You are an elite B2B data extractor. Your ONLY mission is to find DECISION MAKERS in the provided text.\n"
         "Rules:\n"
-        "1. Focus HEAVILY on finding people (staff, leadership, doctors, teachers, board members).\n"
-        "2. For each person, find their full name, job title/position, email, and phone number if available.\n"
-        "3. Do NOT invent or guess data. Use ONLY facts present in the text.\n"
-        "4. Output must be strictly JSON with keys: name, description, emails (array of strings), phones (array of strings), address, city, country, social (object mapping platform to URL), and people.\n"
-        '5. The \'people\' key must be an array of objects: {"name": "", "position": "", "email": "", "phone": "", "profile_url": ""}.\n'
-        "If a field is missing, leave it as an empty string.",
+        "1. Extract ONLY people with senior roles: CEO, Founder, Director, Manager, Chairman, Partner, President, رئيس, مدير عام, مؤسس, عضو مجلس إدارة.\n"
+        "2. If you find a decision maker's name and title, EXTRACT IT immediately, even if their email or phone is missing.\n"
+        "3. Output MUST be valid JSON with keys: name (company name), description, emails, phones, address, city, country, social, and people.\n"
+        "4. 'people' is an array of objects: {\"name\": \"...\", \"position\": \"...\", \"email\": \"...\", \"phone\": \"...\", \"profile_url\": \"...\"}.\n"
+        "Do not invent any data.",
         json.dumps(
             {
                 "url": url,
-                "primary_goal": "Extract as many team members, staff, and contacts as possible.",
-                "existing": existing or {},
+                "primary_goal": "Find Decision Makers (C-Level, Founders, Directors).",
                 "text": compact,
             },
             ensure_ascii=False,
@@ -204,7 +201,6 @@ def extract_from_page_text(text: str, url: str, existing: dict | None = None) ->
         max_tokens=1600,
     )
     return data if isinstance(data, dict) else {}
-
 
 def enhance_entity_record(record: dict) -> dict:
     """Normalize/complete a merged entity record after deterministic extraction."""

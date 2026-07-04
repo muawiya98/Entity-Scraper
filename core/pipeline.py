@@ -114,9 +114,9 @@ def run_pipeline(search_id: int) -> None:
                     log.info("Skipping low-relevance record: %s", result.url)
                     continue
 
-                if not safety.has_people_data(record):
-                    log.info("Skipping record with no people data: %s", result.url)
-                    continue
+                # if not safety.has_people_data(record):
+                #     log.info("Skipping record with no people data: %s", result.url)
+                #     continue
 
                 if llm.enabled():
                     verdict = llm.validate_entity_record(

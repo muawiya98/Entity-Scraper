@@ -197,15 +197,13 @@ _ARABIC_COUNTRIES = {
 
 
 def _region_codes(region: str) -> list[str]:
-    """Region codes to try, most specific first, always ending worldwide.
-
-    ddgs 9.x uses ISO ``<country>-<lang>`` codes (e.g. ``sa-ar``) and silently
-    returns nothing for unknown combinations, so we always fall back to
-    ``wt-wt`` (worldwide).
-    """
+    """Region codes to try, most specific first, always ending worldwide."""
     cc = region.lower()
+    if cc == "wt-wt":
+        return ["wt-wt"]
+
     lang = "ar" if region in _ARABIC_COUNTRIES else "en"
-    codes = [f"{cc }-{lang }"]
+    codes = [f"{cc}-{lang}"]
     if "wt-wt" not in codes:
         codes.append("wt-wt")
     return codes

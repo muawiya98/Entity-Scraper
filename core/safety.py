@@ -10,6 +10,18 @@ TOKEN_RE = re.compile(r"[\w\u0600-\u06ff]+", re.UNICODE)
 
 
 BLOCKED_DOMAIN_LABELS = {
+    "yellowpages",
+    "daleel",
+    "zoominfo",
+    "zawya",
+    "mubasher",
+    "argaam",
+    "dubaicitycompany",
+    "propertyfinder",
+    "bayut",
+    "dubizzle",
+    "edarabia",
+    "gulftalent",
     "facebook",
     "twitter",
     "x",

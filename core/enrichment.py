@@ -73,7 +73,7 @@ def get_enriched_data(domain: str) -> dict:
 
     providers: list[tuple[str, Callable[[str], dict]]] = [
         # ("Clay", enrich_with_clay),
-        ("Hunter", enrich_with_hunter),
+        # ("Hunter", enrich_with_hunter),
         ("Apollo", enrich_with_apollo),
     ]
 
