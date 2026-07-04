@@ -1,3 +1,5 @@
+# استبدل ملف safety.py بالكامل بالكود التالي:
+
 """Safety and generic relevance filters shared by search and scraping."""
 
 from __future__ import annotations
@@ -413,13 +415,60 @@ def contains_any(text: str, terms: set[str]) -> bool:
     return any(term in low for term in terms)
 
 
-def query_profile(query: str, location: str = "", entity_type: str = "") -> dict:
-    combined = " ".join([query or "", location or "", entity_type or ""])
-    query_terms = tokens(query)
-    location_terms = tokens(location)
-    type_terms = tokens(entity_type)
-    if not location_terms:
+_CACHE_EXPANDED: dict[str, dict] = {}
 
+def get_cached_expanded_terms(query: str, location: str, entity_type: str) -> dict:
+    key = f"{query}||{location}||{entity_type}"
+    if key in _CACHE_EXPANDED:
+        return _CACHE_EXPANDED[key]
+    
+    from core import llm
+    if llm.enabled():
+        expanded = llm.translate_and_expand_terms(query, location, entity_type)
+    else:
+        expanded = {
+            "query": query,
+            "location": location,
+            "entity_type": entity_type
+        }
+        common_translations = {
+            "عقارات": "real estate, property, properties",
+            "دبي": "dubai",
+            "شركة": "company, corporation",
+            "ابو ظبي": "abu dhabi",
+            "السعودية": "saudi arabia, ksa",
+            "الرياض": "riyadh",
+            "مدرسة": "school",
+            "جامعة": "university",
+            "برمجة": "software, programming, tech",
+            "تسويق": "marketing, advertising",
+            "شحن": "shipping, logistics",
+            "تطوير": "development",
+            "مقاولات": "contracting, construction",
+        }
+        for k, v in common_translations.items():
+            if k in query.lower():
+                expanded["query"] += f", {v}"
+            if k in location.lower():
+                expanded["location"] += f", {v}"
+            if k in entity_type.lower():
+                expanded["entity_type"] += f", {v}"
+                
+    _CACHE_EXPANDED[key] = expanded
+    return expanded
+
+
+def query_profile(query: str, location: str = "", entity_type: str = "") -> dict:
+    expanded = get_cached_expanded_terms(query or "", location or "", entity_type or "")
+    q_val = expanded.get("query") or ""
+    loc_val = expanded.get("location") or ""
+    et_val = expanded.get("entity_type") or ""
+
+    combined = " ".join([q_val, loc_val, et_val])
+    query_terms = tokens(q_val)
+    location_terms = tokens(loc_val)
+    type_terms = tokens(et_val)
+    if not location_terms:
         location_terms = []
     return {
         "arabic": has_arabic(combined),
@@ -498,7 +547,6 @@ def relevance_score(
 
 
 def minimum_score(query: str, location: str = "", entity_type: str = "") -> int:
-
     return 1
 
 
@@ -554,13 +602,6 @@ def record_is_relevant(
 
 
 def has_people_data(record: dict) -> bool:
-    """True when the record carries at least one usable person.
-
-    A usable person has a name plus at least one personal detail (position,
-    e-mail, phone, or profile link).  Because every search exists to extract
-    people's data, records without such a person are dropped before they are
-    stored — nothing is returned for an entity that yields no people.
-    """
     for person in record.get("people") or []:
         if not isinstance(person, dict):
             continue

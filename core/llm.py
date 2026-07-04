@@ -1,10 +1,6 @@
-"""Optional LLM assistance for search, scraping, and extraction.
+# استبدل محتوى ملف llm.py بهذا المحتوى أو أضف الدالة التالية في نهايته:
 
-The deterministic pipeline remains the source of truth.  These helpers only run
-when an API key is configured, and each function is written as a safe fallback:
-if the model call fails or returns invalid JSON, the caller keeps its core
-result.
-"""
+"""Optional LLM assistance for search, scraping, and extraction."""
 
 from __future__ import annotations
 
@@ -202,6 +198,7 @@ def extract_from_page_text(text: str, url: str, existing: dict | None = None) ->
     )
     return data if isinstance(data, dict) else {}
 
+
 def enhance_entity_record(record: dict) -> dict:
     """Normalize/complete a merged entity record after deterministic extraction."""
     summary = dict(record)
@@ -218,6 +215,7 @@ def enhance_entity_record(record: dict) -> dict:
         max_tokens=1600,
     )
     return data if isinstance(data, dict) else {}
+
 
 def validate_entity_record(
     record: dict,
@@ -245,3 +243,32 @@ def validate_entity_record(
         max_tokens=500,
     )
     return data if isinstance(data, dict) else {}
+
+
+def translate_and_expand_terms(query: str, location: str = "", entity_type: str = "") -> dict:
+    """Translate and expand the search parameters to both English and Arabic for cross-lingual matching."""
+    if not enabled():
+        return {"query": query, "location": location, "entity_type": entity_type}
+    
+    prompt = (
+        "You are a translation and search term expansion assistant.\n"
+        "Translate the given search query, location, and entity_type. "
+        "If they are in Arabic, translate them to English. If they are in English, translate them to Arabic.\n"
+        "Provide both the original and translated terms as comma-separated values.\n"
+        "Return JSON only: {\"query_expanded\": \"...\", \"location_expanded\": \"...\", \"entity_type_expanded\": \"...\"}"
+    )
+    
+    user_data = {
+        "query": query,
+        "location": location,
+        "entity_type": entity_type
+    }
+    
+    res = _json_prompt(prompt, json.dumps(user_data, ensure_ascii=False), max_tokens=500)
+    if isinstance(res, dict):
+        return {
+            "query": f"{query}, {res.get('query_expanded', '')}",
+            "location": f"{location}, {res.get('location_expanded', '')}",
+            "entity_type": f"{entity_type}, {res.get('entity_type_expanded', '')}"
+        }
+    return {"query": query, "location": location, "entity_type": entity_type}

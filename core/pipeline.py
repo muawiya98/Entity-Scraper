@@ -1,8 +1,6 @@
-"""End-to-end pipeline: search -> scrape -> extract -> store -> export.
+# استبدل ملف pipeline.py بالكامل بالكود التالي:
 
-Runs inside a background thread so the web UI stays responsive.  Progress is
-written back to the ``searches`` table and polled by the front end.
-"""
+"""End-to-end pipeline: search -> scrape -> extract -> store -> export."""
 
 from __future__ import annotations
 
@@ -43,11 +41,12 @@ def run_pipeline(search_id: int) -> None:
         )
 
         if not results:
+            msg = "لم نجد أي موقع إلكتروني للبحث الحالي. يرجى تفعيل SerpAPI أو Google CSE في ملف الإعدادات أو التحقق من الاتصال الشبكي."
             database.update_search(
                 search_id,
                 status="completed",
                 progress=100,
-                message="No websites found for this query.",
+                message=msg,
                 results_count=0,
                 completed_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
             )
@@ -105,18 +104,13 @@ def run_pipeline(search_id: int) -> None:
                     entity_type=entity_type,
                 )
 
-                if not safety.record_is_relevant(
+                # Bypassing strict keyword check when LLM is enabled for robust semantic matching
+                is_heuristic_relevant = safety.record_is_relevant(
                     record,
                     query=query,
                     location=location,
                     entity_type=entity_type,
-                ):
-                    log.info("Skipping low-relevance record: %s", result.url)
-                    continue
-
-                # if not safety.has_people_data(record):
-                #     log.info("Skipping record with no people data: %s", result.url)
-                #     continue
+                )
 
                 if llm.enabled():
                     verdict = llm.validate_entity_record(
@@ -133,6 +127,9 @@ def run_pipeline(search_id: int) -> None:
                                 verdict.get("reason"),
                             )
                             continue
+                elif not is_heuristic_relevant:
+                    log.info("Skipping low-relevance record (heuristic): %s", result.url)
+                    continue
 
                 scraped_records.append(record)
 

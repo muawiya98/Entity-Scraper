@@ -1,11 +1,6 @@
-"""Website scraper.
+# استبدل ملف scraper.py بالكامل بالكود التالي:
 
-For a given homepage URL the scraper:
-1. fetches the homepage,
-2. discovers a handful of relevant internal pages (contact / about / team),
-3. fetches those too,
-4. merges the per-page extraction results into a single entity record.
-"""
+"""Website scraper."""
 
 from __future__ import annotations
 
@@ -166,7 +161,6 @@ class SiteScraper:
 
         html, status = self._fetch(start_url)
         if not html:
-
             if start_url.startswith("https://"):
                 html, status = self._fetch("http://" + start_url[len("https://") :])
             if not html:
@@ -238,7 +232,16 @@ class SiteScraper:
                 for field in ("position", "email", "phone", "profile_url"):
                     if not merged_people[key].get(field) and p.get(field):
                         merged_people[key][field] = p[field]
-        record["people"] = list(merged_people.values())
+                        
+        # Sorting decision makers to the top of the list
+        record["people"] = sorted(
+            list(merged_people.values()),
+            key=lambda p: any(kw in str(p.get("position", "")).lower() for kw in (
+                "ceo", "founder", "director", "manager", "president", "partner", "owner", "chairman", "gm",
+                "رئيس", "مدير", "مؤسس", "شريك", "مجلس"
+            )),
+            reverse=True
+        )
         record["pages"] = pages_visited
 
         if llm.enabled():

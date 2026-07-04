@@ -1,7 +1,8 @@
-"""Data Enrichment via External APIs (Apollo, Hunter, etc.)"""
+# استبدل ملف enrichment.py بالكامل بالكود التالي:
+
+"""Data Enrichment via External APIs (Apollo, Hunter, Snov.io, Lusha, etc.)"""
 
 from collections.abc import Callable
-
 import requests
 import logging
 from config import config
@@ -17,8 +18,29 @@ def enrich_with_hunter(domain: str) -> dict:
         resp = requests.get(url, timeout=10)
         resp.raise_for_status()
         data = resp.json().get("data", {})
-        emails = [email["value"] for email in data.get("emails", [])]
-        return {"emails": emails, "phones": [], "people": []}
+        
+        emails_list = data.get("emails", []) or []
+        emails = []
+        people = []
+        for e in emails_list:
+            email_val = e.get("value")
+            if email_val:
+                emails.append(email_val)
+            first = e.get("first_name") or ""
+            last = e.get("last_name") or ""
+            name = f"{first} {last}".strip()
+            pos = e.get("position") or ""
+            phone = e.get("phone_number") or ""
+            if name and (pos or phone or email_val):
+                people.append({
+                    "name": name,
+                    "position": pos,
+                    "email": email_val,
+                    "phone": phone,
+                    "profile_url": "",
+                    "source": "hunter.io"
+                })
+        return {"emails": emails, "phones": [], "people": people}
     except Exception as e:
         log.warning("Hunter.io failed for %s: %s", domain, e)
         return {}
@@ -28,21 +50,69 @@ def enrich_with_apollo(domain: str) -> dict:
     if not config.APOLLO_API_KEY:
         return {}
     try:
-        url = "https://api.apollo.io/v1/organizations/enrich"
-        headers = {"Content-Type": "application/json"}
-        data = {"api_key": config.APOLLO_API_KEY, "domain": domain}
+        # Utilizing mixed people search for precise decision maker targeting
+        url = "https://api.apollo.io/v1/mixed_people/search"
+        headers = {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache"
+        }
+        data = {
+            "api_key": config.APOLLO_API_KEY,
+            "q_organization_domains": [domain],
+            "person_titles": [
+                "CEO", "Founder", "Co-Founder", "Owner", "President", 
+                "Managing Director", "Director", "Manager", "Chairman",
+                "Chief Executive Officer", "Partner", "General Manager",
+                "رئيس تنفيذي", "مدير عام", "مؤسس", "شريك"
+            ]
+        }
         resp = requests.post(url, headers=headers, json=data, timeout=15)
         resp.raise_for_status()
-        org = resp.json().get("organization", {})
-
+        contacts = resp.json().get("contacts", [])
+        
+        people = []
+        emails = []
         phones = []
-        if org.get("primary_phone"):
-            phones.append(org.get("primary_phone").get("number"))
-
-        return {"emails": [], "phones": phones, "people": []}
+        for c in contacts:
+            name = f"{c.get('first_name', '')} {c.get('last_name', '')}".strip()
+            if not name:
+                continue
+            email = c.get("email") or ""
+            phone = c.get("phone_number") or c.get("primary_phone", {}).get("number") or ""
+            pos = c.get("title") or ""
+            linkedin = c.get("linkedin_url") or ""
+            
+            if email and email not in emails:
+                emails.append(email)
+            if phone and phone not in phones:
+                phones.append(phone)
+                
+            people.append({
+                "name": name,
+                "position": pos,
+                "email": email,
+                "phone": phone,
+                "profile_url": linkedin,
+                "source": "apollo.io"
+            })
+        return {"emails": emails, "phones": phones, "people": people}
     except Exception as e:
-        log.warning("Apollo failed for %s: %s", domain, e)
-        return {}
+        log.warning("Apollo mixed people search failed for %s: %s", domain, e)
+        # Fallback to general organization enrichment
+        try:
+            url = "https://api.apollo.io/v1/organizations/enrich"
+            headers = {"Content-Type": "application/json"}
+            data = {"api_key": config.APOLLO_API_KEY, "domain": domain}
+            resp = requests.post(url, headers=headers, json=data, timeout=15)
+            resp.raise_for_status()
+            org = resp.json().get("organization", {})
+            phones = []
+            if org.get("primary_phone"):
+                phones.append(org.get("primary_phone").get("number"))
+            return {"emails": [], "phones": phones, "people": []}
+        except Exception as e2:
+            log.warning("Apollo fallback failed for %s: %s", domain, e2)
+            return {}
 
 
 def enrich_with_clay(domain: str) -> dict:
@@ -53,9 +123,7 @@ def enrich_with_clay(domain: str) -> dict:
         payload = {"domain": domain}
         resp = requests.post(config.CLAY_WEBHOOK_URL, json=payload, timeout=30)
         resp.raise_for_status()
-
         data = resp.json()
-
         return {
             "emails": data.get("emails", []),
             "phones": data.get("phones", []),
@@ -66,6 +134,122 @@ def enrich_with_clay(domain: str) -> dict:
         return {}
 
 
+def enrich_with_lusha(domain: str) -> dict:
+    if not config.LUSHA_API_KEY:
+        return {}
+    try:
+        url = f"https://api.lusha.com/v1/person?domain={domain}"
+        headers = {"api_key": config.LUSHA_API_KEY}
+        resp = requests.get(url, headers=headers, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+        
+        people = []
+        emails = []
+        phones = []
+        
+        records = data.get("data")
+        if isinstance(records, dict):
+            records = [records]
+        elif not isinstance(records, list):
+            records = []
+            
+        for r in records:
+            name = f"{r.get('firstName', '')} {r.get('lastName', '')}".strip()
+            if not name:
+                continue
+            pos = r.get("company", {}).get("title") or r.get("title") or ""
+            emails_list = r.get("emailAddresses", []) or []
+            phones_list = r.get("phoneNumbers", []) or []
+            
+            email_val = emails_list[0] if emails_list else ""
+            phone_val = phones_list[0] if phones_list else ""
+            
+            for em in emails_list:
+                if em and em not in emails:
+                    emails.append(em)
+            for ph in phones_list:
+                if ph and ph not in phones:
+                    phones.append(ph)
+                    
+            people.append({
+                "name": name,
+                "position": pos,
+                "email": email_val,
+                "phone": phone_val,
+                "profile_url": r.get("linkedinUrl") or "",
+                "source": "lusha"
+            })
+        return {"emails": emails, "phones": phones, "people": people}
+    except Exception as e:
+        log.warning("Lusha enrichment failed for %s: %s", domain, e)
+        return {}
+
+
+def get_snovio_token() -> str | None:
+    if not config.SNOVIO_CLIENT_ID or not config.SNOVIO_CLIENT_SECRET:
+        return None
+    try:
+        url = "https://api.snov.io/v1/oauth/access_token"
+        payload = {
+            "grant_type": "client_credentials",
+            "client_id": config.SNOVIO_CLIENT_ID,
+            "client_secret": config.SNOVIO_CLIENT_SECRET
+        }
+        resp = requests.post(url, data=payload, timeout=10)
+        resp.raise_for_status()
+        return resp.json().get("access_token")
+    except Exception as e:
+        log.warning("Snov.io oauth failed: %s", e)
+        return None
+
+
+def enrich_with_snovio(domain: str) -> dict:
+    token = get_snovio_token()
+    if not token:
+        return {}
+    try:
+        url = "https://api.snov.io/v2/domain-emails-with-info"
+        params = {
+            "access_token": token,
+            "domain": domain,
+            "type": "all",
+            "limit": 50,
+            "lastId": 0
+        }
+        resp = requests.get(url, params=params, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+        
+        emails = []
+        people = []
+        
+        emails_list = data.get("emails", []) or []
+        for em in emails_list:
+            email_val = em.get("email")
+            if email_val:
+                emails.append(email_val)
+                
+            first = em.get("firstName") or ""
+            last = em.get("lastName") or ""
+            name = f"{first} {last}".strip()
+            pos = em.get("position") or ""
+            
+            if name and (pos or email_val):
+                people.append({
+                    "name": name,
+                    "position": pos,
+                    "email": email_val,
+                    "phone": "",
+                    "profile_url": "",
+                    "source": "snov.io"
+                })
+        return {"emails": emails, "phones": [], "people": people}
+    except Exception as e:
+        log.warning("Snovio enrichment failed for %s: %s", domain, e)
+        return {}
+
+
 def get_enriched_data(domain: str) -> dict:
     result = {"emails": [], "phones": [], "people": []}
     if not domain:
@@ -73,8 +257,10 @@ def get_enriched_data(domain: str) -> dict:
 
     providers: list[tuple[str, Callable[[str], dict]]] = [
         # ("Clay", enrich_with_clay),
-        # ("Hunter", enrich_with_hunter),
+        ("Hunter", enrich_with_hunter),
         ("Apollo", enrich_with_apollo),
+        # ("Lusha", enrich_with_lusha),
+        # ("Snovio", enrich_with_snovio),
     ]
 
     for provider_name, provider_func in providers:
@@ -82,7 +268,6 @@ def get_enriched_data(domain: str) -> dict:
             log.info(
                 "Attempting enrichment with %s for domain: %s", provider_name, domain
             )
-
             data = provider_func(domain)
 
             if not isinstance(data, dict):
