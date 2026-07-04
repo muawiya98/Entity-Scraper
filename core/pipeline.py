@@ -76,6 +76,21 @@ def run_pipeline(search_id: int) -> None:
                 record = None
 
             if record:
+                from core.enrichment import get_enriched_data
+
+                enriched = get_enriched_data(record.get("domain", ""))
+
+                for email in enriched.get("emails", []):
+                    if email not in record["emails"]:
+                        record["emails"].append(email)
+
+                for phone in enriched.get("phones", []):
+                    if phone not in record["phones"]:
+                        record["phones"].append(phone)
+
+                record["people"].extend(enriched.get("people", []))
+
+                record.setdefault("meta", {})["enriched_via_apis"] = True
 
                 if not record.get("description"):
                     record["description"] = result.snippet

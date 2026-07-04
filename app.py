@@ -19,8 +19,13 @@ format ="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 log =logging .getLogger ("entity-scraper")
 
+logging.getLogger("werkzeug").setLevel(logging.WARNING)
+logging.getLogger("primp").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 app =Flask (__name__ )
-app .config ["SECRET_KEY"]=config .SECRET_KEY 
+app .config ["SECRET_KEY"]=config.SECRET_KEY 
 app .json .ensure_ascii =False 
 
 database .init_db ()

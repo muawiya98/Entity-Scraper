@@ -61,6 +61,13 @@ class Config:
     REQUEST_DELAY: float = float(os.getenv("REQUEST_DELAY", "0.5"))
     RESPECT_ROBOTS: bool = _as_bool(os.getenv("RESPECT_ROBOTS"), True)
 
+    APOLLO_API_KEY: str = os.getenv("APOLLO_API_KEY", "").strip()
+    HUNTER_API_KEY: str = os.getenv("HUNTER_API_KEY", "").strip()
+    CLAY_WEBHOOK_URL: str = os.getenv("CLAY_WEBHOOK_URL", "").strip()
+    LUSHA_API_KEY: str = os.getenv("LUSHA_API_KEY", "").strip()
+    SNOVIO_CLIENT_ID: str = os.getenv("SNOVIO_CLIENT_ID", "").strip()
+    SNOVIO_CLIENT_SECRET: str = os.getenv("SNOVIO_CLIENT_SECRET", "").strip()
+
     USER_AGENT: str = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 EntityScraper/1.0"
