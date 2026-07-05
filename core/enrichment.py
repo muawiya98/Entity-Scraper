@@ -1,5 +1,3 @@
-# استبدل ملف enrichment.py بالكامل بالكود التالي:
-
 """Data Enrichment via External APIs (Apollo, Hunter, Snov.io, Lusha, etc.)"""
 
 from collections.abc import Callable
@@ -50,11 +48,12 @@ def enrich_with_apollo(domain: str) -> dict:
     if not config.APOLLO_API_KEY:
         return {}
     try:
-        # Utilizing mixed people search for precise decision maker targeting
-        url = "https://api.apollo.io/v1/mixed_people/search"
+        # Updated endpoint to prevent 422 Client Error (legacy mixed_people/search is deprecated)
+        url = "https://api.apollo.io/v1/mixed_people/api_search"
         headers = {
             "Content-Type": "application/json",
-            "Cache-Control": "no-cache"
+            "Cache-Control": "no-cache",
+            "x-api-key": config.APOLLO_API_KEY
         }
         data = {
             "api_key": config.APOLLO_API_KEY,
@@ -101,7 +100,10 @@ def enrich_with_apollo(domain: str) -> dict:
         # Fallback to general organization enrichment
         try:
             url = "https://api.apollo.io/v1/organizations/enrich"
-            headers = {"Content-Type": "application/json"}
+            headers = {
+                "Content-Type": "application/json",
+                "x-api-key": config.APOLLO_API_KEY
+            }
             data = {"api_key": config.APOLLO_API_KEY, "domain": domain}
             resp = requests.post(url, headers=headers, json=data, timeout=15)
             resp.raise_for_status()

@@ -179,13 +179,12 @@ def extract_from_page_text(text: str, url: str, existing: dict | None = None) ->
     if not compact:
         return {}
     data = _json_prompt(
-        "You are an elite B2B data extractor. Your ONLY mission is to find DECISION MAKERS in the provided text.\n"
-        "Rules:\n"
-        "1. Extract ONLY people with senior roles: CEO, Founder, Director, Manager, Chairman, Partner, President, رئيس, مدير عام, مؤسس, عضو مجلس إدارة.\n"
-        "2. If you find a decision maker's name and title, EXTRACT IT immediately, even if their email or phone is missing.\n"
-        "3. Output MUST be valid JSON with keys: name (company name), description, emails, phones, address, city, country, social, and people.\n"
-        "4. 'people' is an array of objects: {\"name\": \"...\", \"position\": \"...\", \"email\": \"...\", \"phone\": \"...\", \"profile_url\": \"...\"}.\n"
-        "Do not invent any data.",
+        "You are an elite B2B data extractor. Your ONLY mission is to find DECISION MAKERS and company data STRICTLY within the provided text.\n"
+        "CRITICAL RULES:\n"
+        "1. DO NOT HALLUCINATE. DO NOT GUESS. If information is not explicitly written in the text, return empty strings or arrays.\n"
+        "2. Extract ONLY people with senior roles (CEO, Founder, Director, Manager, Chairman, Partner, etc.).\n"
+        "3. Output MUST be valid JSON with keys: name, description, emails, phones, address, city, country, social, and people.\n"
+        "4. 'people' is an array of objects: {\"name\": \"...\", \"position\": \"...\", \"email\": \"...\", \"phone\": \"...\", \"profile_url\": \"...\"}.\n",
         json.dumps(
             {
                 "url": url,
@@ -205,12 +204,12 @@ def enhance_entity_record(record: dict) -> dict:
     summary.pop("pages", None)
     data = _json_prompt(
         "You are an expert data cleaner. Clean, deduplicate, and normalize this scraped organization record.\n"
-        "Rules:\n"
-        "1. Do NOT invent any new information or facts. Only clean what is provided.\n"
-        "2. Remove duplicated people, emails, or phones.\n"
-        "3. Standardize job titles (positions) if they are messy, but keep the original meaning.\n"
-        "4. Preserve all Arabic text perfectly without changing names.\n"
-        "5. Return JSON only, keeping the exact same structure and keys supplied.",
+        "CRITICAL RULES:\n"
+        "1. DO NOT INVENT or HALLUCINATE any new names, emails, phones, or URLs. Only use the data provided in the input.\n"
+        "2. Remove completely duplicated people, emails, or phones.\n"
+        "3. Standardize job titles if messy, but KEEP original meanings.\n"
+        "4. Preserve all Arabic text perfectly.\n"
+        "5. If a field is empty, keep it empty. Return JSON with the exact same structure.",
         json.dumps(summary, ensure_ascii=False),
         max_tokens=1600,
     )

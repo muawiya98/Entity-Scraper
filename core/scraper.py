@@ -86,7 +86,22 @@ class SiteScraper:
         if not self._allowed(url):
             log.info("robots.txt disallows %s", url)
             return None, 0
+            
         try:
+            jina_url = f"https://r.jina.ai/{url}"
+            headers = {
+                "Accept": "application/json",
+                "X-Return-Format": "html",
+            }
+            log.info("Fetching via Jina AI: %s", url)
+            resp = self.session.get(jina_url, headers=headers, timeout=config.REQUEST_TIMEOUT + 10)
+            
+            if resp.status_code == 200:
+                data = resp.json()
+                if data and data.get("data", {}).get("html"):
+                    return data["data"]["html"], 200
+
+            log.warning("Jina failed, falling back to direct requests for %s", url)
             resp = self.session.get(
                 url, timeout=config.REQUEST_TIMEOUT, allow_redirects=True
             )
@@ -95,7 +110,8 @@ class SiteScraper:
                 return None, resp.status_code
             resp.encoding = resp.encoding or resp.apparent_encoding
             return resp.text, resp.status_code
-        except requests.RequestException as exc:
+            
+        except Exception as exc:
             log.warning("Failed to fetch %s: %s", url, exc)
             return None, 0
 

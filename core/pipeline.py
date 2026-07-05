@@ -1,7 +1,3 @@
-# استبدل ملف pipeline.py بالكامل بالكود التالي:
-
-"""End-to-end pipeline: search -> scrape -> extract -> store -> export."""
-
 from __future__ import annotations
 
 import logging
@@ -104,12 +100,17 @@ def run_pipeline(search_id: int) -> None:
                     entity_type=entity_type,
                 )
 
-                # Bypassing strict keyword check when LLM is enabled for robust semantic matching
                 is_heuristic_relevant = safety.record_is_relevant(
                     record,
                     query=query,
                     location=location,
                     entity_type=entity_type,
+                )
+
+                is_specific_search = (
+                    len(query.split()) <= 3
+                    and result.domain in query.lower()
+                    or query.lower() in result.domain.replace(".", " ")
                 )
 
                 if llm.enabled():
@@ -120,16 +121,32 @@ def run_pipeline(search_id: int) -> None:
                         record["meta"]["llm_relevance_reason"] = verdict.get(
                             "reason", ""
                         )
-                        if verdict.get("relevant") is False:
-                            log.info(
-                                "LLM rejected record %s: %s",
-                                result.url,
-                                verdict.get("reason"),
-                            )
-                            continue
-                elif not is_heuristic_relevant:
-                    log.info("Skipping low-relevance record (heuristic): %s", result.url)
-                    continue
+
+                        if verdict.get("relevant") is False and not is_specific_search:
+                            if (
+                                len(record.get("people", [])) == 0
+                                and len(record.get("emails", [])) == 0
+                            ):
+                                log.info(
+                                    "LLM rejected record %s: %s",
+                                    result.url,
+                                    verdict.get("reason"),
+                                )
+                                continue
+                            else:
+                                log.info(
+                                    "LLM rejected %s but kept due to extracted contacts.",
+                                    result.url,
+                                )
+                elif not is_heuristic_relevant and not is_specific_search:
+                    if (
+                        len(record.get("people", [])) == 0
+                        and len(record.get("emails", [])) == 0
+                    ):
+                        log.info(
+                            "Skipping low-relevance record (heuristic): %s", result.url
+                        )
+                        continue
 
                 scraped_records.append(record)
 
