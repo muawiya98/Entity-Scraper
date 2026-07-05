@@ -1,5 +1,3 @@
-# استبدل ملف safety.py بالكامل بالكود التالي:
-
 """Safety and generic relevance filters shared by search and scraping."""
 
 from __future__ import annotations
@@ -415,46 +413,84 @@ def contains_any(text: str, terms: set[str]) -> bool:
     return any(term in low for term in terms)
 
 
-_CACHE_EXPANDED: dict[str, dict] = {}
+import logging
+import time
+
+log = logging.getLogger(__name__)
+
+_CACHE_EXPANDED: dict[str, tuple[float, dict]] = {}
+_CACHE_TTL_SECONDS = 6 * 3600  # avoid an unbounded, permanently-stale process-wide cache
+_CACHE_MAX_ENTRIES = 500
+
+# Static dictionary is always applied (fast, deterministic) in addition to
+# whatever the LLM returns, instead of only being a fallback when the LLM is
+# disabled. This means a bilingual query never depends solely on one LLM
+# call succeeding.
+_STATIC_TRANSLATIONS = {
+    "عقارات": "real estate, property, properties",
+    "دبي": "dubai",
+    "شركة": "company, corporation",
+    "شركات": "company, companies, corporation",
+    "ابو ظبي": "abu dhabi",
+    "أبوظبي": "abu dhabi",
+    "السعودية": "saudi arabia, ksa",
+    "الرياض": "riyadh",
+    "مدرسة": "school",
+    "جامعة": "university",
+    "برمجة": "software, programming, tech, it",
+    "برمجيات": "software, programming, tech, it",
+    "تسويق": "marketing, advertising",
+    "شحن": "shipping, logistics",
+    "تطوير": "development",
+    "مقاولات": "contracting, construction",
+}
+
+
+def _apply_static_translation(value: str) -> str:
+    if not value:
+        return value
+    low = value.lower()
+    extra = [v for k, v in _STATIC_TRANSLATIONS.items() if k in low]
+    return value if not extra else f"{value}, {', '.join(extra)}"
+
 
 def get_cached_expanded_terms(query: str, location: str, entity_type: str) -> dict:
     key = f"{query}||{location}||{entity_type}"
-    if key in _CACHE_EXPANDED:
-        return _CACHE_EXPANDED[key]
-    
+    now = time.monotonic()
+
+    cached = _CACHE_EXPANDED.get(key)
+    if cached and (now - cached[0]) < _CACHE_TTL_SECONDS:
+        return cached[1]
+
+    if len(_CACHE_EXPANDED) >= _CACHE_MAX_ENTRIES:
+        _CACHE_EXPANDED.clear()
+
+    # Start from the static dictionary unconditionally...
+    expanded = {
+        "query": _apply_static_translation(query),
+        "location": _apply_static_translation(location),
+        "entity_type": _apply_static_translation(entity_type),
+    }
+
+    # ...then layer the LLM expansion on top when available, so bilingual
+    # coverage doesn't collapse to nothing on any single LLM failure.
     from core import llm
+
     if llm.enabled():
-        expanded = llm.translate_and_expand_terms(query, location, entity_type)
-    else:
-        expanded = {
-            "query": query,
-            "location": location,
-            "entity_type": entity_type
-        }
-        common_translations = {
-            "عقارات": "real estate, property, properties",
-            "دبي": "dubai",
-            "شركة": "company, corporation",
-            "ابو ظبي": "abu dhabi",
-            "السعودية": "saudi arabia, ksa",
-            "الرياض": "riyadh",
-            "مدرسة": "school",
-            "جامعة": "university",
-            "برمجة": "software, programming, tech",
-            "تسويق": "marketing, advertising",
-            "شحن": "shipping, logistics",
-            "تطوير": "development",
-            "مقاولات": "contracting, construction",
-        }
-        for k, v in common_translations.items():
-            if k in query.lower():
-                expanded["query"] += f", {v}"
-            if k in location.lower():
-                expanded["location"] += f", {v}"
-            if k in entity_type.lower():
-                expanded["entity_type"] += f", {v}"
-                
-    _CACHE_EXPANDED[key] = expanded
+        try:
+            llm_expanded = llm.translate_and_expand_terms(query, location, entity_type)
+            for field in ("query", "location", "entity_type"):
+                extra = (llm_expanded or {}).get(field) or ""
+                # llm.translate_and_expand_terms already echoes the original
+                # value back, so only append genuinely new text.
+                base_value = {"query": query, "location": location, "entity_type": entity_type}[field]
+                new_part = extra.replace(base_value, "", 1).strip(", ").strip()
+                if new_part and new_part not in expanded[field]:
+                    expanded[field] = f"{expanded[field]}, {new_part}"
+        except Exception as exc:
+            log.warning("LLM term expansion failed, using static dictionary only: %s", exc)
+
+    _CACHE_EXPANDED[key] = (now, expanded)
     return expanded
 
 
@@ -509,15 +545,25 @@ def relevance_score(
     query_terms = profile["query_terms"] or profile["all_terms"]
     if query_terms:
         covered = [t for t in query_terms if t in text_terms or t in domain_terms]
+        # NOTE: this used to `return -10` immediately when no query token
+        # matched literally. That is a hard, binary rejection built on exact
+        # token overlap, and it fails structurally for bilingual queries
+        # (e.g. an Arabic query matching an English-only company site) and
+        # for single, specific-name searches (a company's own site rarely
+        # repeats the exact search phrase verbatim). Zero lexical overlap is
+        # now a strong negative *signal*, not an automatic veto — the
+        # decision to keep or drop a record is made once, downstream in
+        # record_is_relevant/pipeline, where LLM verdicts and extracted
+        # contact data can outweigh a lexical miss.
         if not covered:
-            return -10
-
-        score += len(covered) * 4
-        coverage = len(covered) / max(1, len(query_terms))
-        if coverage >= 0.75:
-            score += 6
-        elif coverage >= 0.5:
-            score += 3
+            score -= 10
+        else:
+            score += len(covered) * 4
+            coverage = len(covered) / max(1, len(query_terms))
+            if coverage >= 0.75:
+                score += 6
+            elif coverage >= 0.5:
+                score += 3
 
     for term in profile["location_terms"]:
         if term in text_terms or term in domain_terms:
@@ -548,6 +594,46 @@ def relevance_score(
 
 def minimum_score(query: str, location: str = "", entity_type: str = "") -> int:
     return 1
+
+
+_NAME_SEP_RE = re.compile(r"[\s\-_\.]+")
+
+
+def _slug(text: str) -> str:
+    """Collapse a string to a bare lowercase alnum run, for name-vs-domain matching."""
+    return re.sub(r"[^a-z0-9\u0600-\u06ff]", "", (text or "").lower())
+
+
+def is_direct_name_match(query: str, domain: str, title: str = "", url: str = "") -> bool:
+    """True when the query looks like a specific entity name that literally
+    appears in the domain, title, or URL — e.g. query "beeorder" /
+    "شركة beeorder" against domain "beeorder.com" or title "BeeOrder | Home".
+
+    This is intentionally simple substring matching on a stripped-down slug
+    (no stemming, no stopword removal) because the whole point is to catch
+    the case where token-level normalization (Arabic stemming, English
+    pluralization) would otherwise obscure an exact, unambiguous name hit.
+    Used as a hard override that keeps a record even when semantic/lexical
+    scoring is uncertain, since an exact name match on a single-entity
+    search is the strongest possible relevance signal available.
+    """
+    query = (query or "").strip()
+    if not query:
+        return False
+
+    # Strip generic entity-type / stopword tokens (e.g. "شركة", "company")
+    # so "شركة beeorder" reduces to "beeorder" before slugging.
+    generic = {normalize_token(t) for t in ENTITY_HINTS} | EN_STOPWORDS | AR_STOPWORDS
+    words = [w for w in re.split(r"\s+", query) if w]
+    core_words = [w for w in words if normalize_token(w) not in generic]
+    core = " ".join(core_words) if core_words else query
+
+    query_slug = _slug(core)
+    if len(query_slug) < 3:
+        return False
+
+    haystacks = [_slug(domain), _slug(domain_label(domain)), _slug(title), _slug(url)]
+    return any(query_slug in h for h in haystacks if h)
 
 
 def record_relevance_score(
@@ -588,6 +674,16 @@ def record_relevance_score(
     if num_people > 0:
         score += min(num_people * 2, 10)
 
+    # An exact entity-name hit (query "beeorder" against domain
+    # "beeorder.com") is decisive evidence that lexical token-overlap
+    # scoring can miss entirely (stemming, language mismatch, generic
+    # entity-type words diluting the token set). Reward it heavily instead
+    # of relying on it as a separate gate the caller might forget to check.
+    if is_direct_name_match(
+        query, str(record.get("domain") or ""), title=title, url=str(record.get("website") or "")
+    ):
+        score += 20
+
     return score
 
 
@@ -597,6 +693,25 @@ def record_is_relevant(
     location: str = "",
     entity_type: str = "",
 ) -> bool:
+    """Heuristic relevance gate used only when the LLM is unavailable.
+
+    Kept intentionally permissive: this used to be a strict `score >=
+    minimum_score()` gate fed by a scoring function that could return -10
+    outright on zero lexical overlap, which meant a single specific-name
+    search ("beeorder") or a language-mismatched general search ("شركات
+    برمجية" vs an English-only site) could be rejected before any other
+    signal was consulted. Direct name matches and any extracted contact
+    data (people/emails) are now treated as sufficient on their own.
+    """
+    if is_direct_name_match(
+        query,
+        str(record.get("domain") or ""),
+        title=str(record.get("name") or ""),
+        url=str(record.get("website") or ""),
+    ):
+        return True
+    if has_people_data(record) or record.get("emails"):
+        return True
     score = record_relevance_score(record, query, location, entity_type)
     return score >= minimum_score(query, location, entity_type)
 

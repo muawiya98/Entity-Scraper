@@ -1,5 +1,3 @@
-# استبدل ملف scraper.py بالكامل بالكود التالي:
-
 """Website scraper."""
 
 from __future__ import annotations
@@ -79,6 +77,60 @@ class SiteScraper:
         except Exception:
             return True
 
+    def _fetch_direct(self, url: str) -> tuple[str | None, int]:
+        """Plain HTTP GET — no third-party proxy involved."""
+        resp = self.session.get(
+            url, timeout=config.REQUEST_TIMEOUT, allow_redirects=True
+        )
+        ctype = resp.headers.get("Content-Type", "")
+        if "html" not in ctype and "text" not in ctype:
+            log.info(
+                "Fetched %s but Content-Type=%r is not HTML/text (status=%s)",
+                url,
+                ctype,
+                resp.status_code,
+            )
+            return None, resp.status_code
+        resp.encoding = resp.encoding or resp.apparent_encoding
+        return resp.text, resp.status_code
+
+    def _fetch_via_jina(self, url: str) -> tuple[str | None, int]:
+        """Optional reader-proxy fallback. Only attempted when JINA_API_KEY
+        is configured — the unauthenticated r.jina.ai endpoint is rate
+        limited hard enough that calling it unconditionally on every fetch
+        (as the previous version did, *before* trying the direct request)
+        added a real chance of eating the whole request budget on sites
+        that would have loaded fine directly, and could return a non-200
+        response that was only logged as a generic warning."""
+        if not getattr(config, "JINA_API_KEY", ""):
+            return None, 0
+        try:
+            jina_url = f"https://r.jina.ai/{url}"
+            headers = {
+                "Accept": "application/json",
+                "X-Return-Format": "html",
+                "Authorization": f"Bearer {config.JINA_API_KEY}",
+            }
+            resp = self.session.get(
+                jina_url, headers=headers, timeout=config.REQUEST_TIMEOUT
+            )
+            if resp.status_code != 200:
+                log.info(
+                    "Jina reader returned status %s for %s, discarding",
+                    resp.status_code,
+                    url,
+                )
+                return None, 0
+            data = resp.json()
+            html = (data or {}).get("data", {}).get("html")
+            if html:
+                return html, 200
+            log.info("Jina reader returned no HTML payload for %s", url)
+            return None, 0
+        except Exception as exc:
+            log.info("Jina reader fetch failed for %s: %s", url, exc)
+            return None, 0
+
     def _fetch(self, url: str) -> tuple[str | None, int]:
         if safety.is_unsafe_url(url):
             log.info("Blocked unsafe or irrelevant URL: %s", url)
@@ -86,34 +138,26 @@ class SiteScraper:
         if not self._allowed(url):
             log.info("robots.txt disallows %s", url)
             return None, 0
-            
-        try:
-            jina_url = f"https://r.jina.ai/{url}"
-            headers = {
-                "Accept": "application/json",
-                "X-Return-Format": "html",
-            }
-            log.info("Fetching via Jina AI: %s", url)
-            resp = self.session.get(jina_url, headers=headers, timeout=config.REQUEST_TIMEOUT + 10)
-            
-            if resp.status_code == 200:
-                data = resp.json()
-                if data and data.get("data", {}).get("html"):
-                    return data["data"]["html"], 200
 
-            log.warning("Jina failed, falling back to direct requests for %s", url)
-            resp = self.session.get(
-                url, timeout=config.REQUEST_TIMEOUT, allow_redirects=True
+        try:
+            html, status = self._fetch_direct(url)
+            if html:
+                return html, status
+            log.warning(
+                "Direct fetch of %s returned no usable HTML (status=%s)", url, status
             )
-            ctype = resp.headers.get("Content-Type", "")
-            if "html" not in ctype and "text" not in ctype:
-                return None, resp.status_code
-            resp.encoding = resp.encoding or resp.apparent_encoding
-            return resp.text, resp.status_code
-            
         except Exception as exc:
-            log.warning("Failed to fetch %s: %s", url, exc)
-            return None, 0
+            log.warning("Direct fetch failed for %s: %s", url, exc)
+
+        # Only reached if the direct request failed or returned non-HTML,
+        # and only does anything if a Jina key is configured.
+        html, status = self._fetch_via_jina(url)
+        if html:
+            log.info("Recovered %s via Jina reader after direct fetch failed", url)
+            return html, status
+
+        log.warning("All fetch strategies exhausted for %s", url)
+        return None, 0
 
     def _find_internal_pages(self, base_url: str, html: str) -> dict[str, str]:
         """Return {page_type: url} for the best contact/about/team links."""

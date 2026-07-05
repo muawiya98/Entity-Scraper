@@ -61,6 +61,11 @@ class Config:
     REQUEST_DELAY: float = float(os.getenv("REQUEST_DELAY", "0.5"))
     RESPECT_ROBOTS: bool = _as_bool(os.getenv("RESPECT_ROBOTS"), True)
 
+    # Optional reader-proxy fallback used only after a direct fetch fails.
+    # Leave blank to disable entirely (default) — the scraper still works
+    # fully via direct requests without it.
+    JINA_API_KEY: str = os.getenv("JINA_API_KEY", "").strip()
+
     APOLLO_API_KEY: str = os.getenv("APOLLO_API_KEY", "").strip()
     HUNTER_API_KEY: str = os.getenv("HUNTER_API_KEY", "").strip()
     CLAY_WEBHOOK_URL: str = os.getenv("CLAY_WEBHOOK_URL", "").strip()

@@ -72,6 +72,19 @@ def run_pipeline(search_id: int) -> None:
                 log.warning("Scrape failed for %s: %s", result.url, exc)
                 record = None
 
+            if record is None:
+                # scraper.scrape() can also return None without raising
+                # (fetch failure, robots.txt disallow, unsafe URL) — that
+                # path previously left no trace here beyond a generic
+                # "Scraping i/N" progress message, making it impossible to
+                # tell from search-run logs alone why a site the search
+                # backend found never became an entity. scraper.py now logs
+                # the specific reason (see WARNING/INFO lines tagged
+                # "fetch failed" / "robots.txt disallows" / "unsafe URL");
+                # this line just makes the pipeline-level drop explicit too.
+                log.info("No record produced for %s (scrape returned None)", result.url)
+                continue
+
             if record:
                 from core.enrichment import get_enriched_data
 
@@ -107,47 +120,78 @@ def run_pipeline(search_id: int) -> None:
                     entity_type=entity_type,
                 )
 
-                is_specific_search = (
-                    len(query.split()) <= 3
-                    and result.domain in query.lower()
-                    or query.lower() in result.domain.replace(".", " ")
+                # Was: `len(query.split()) <= 3 and result.domain in query.lower()
+                # or query.lower() in result.domain.replace(".", " ")`.
+                # Operator precedence made this `(A and B) or C`, and both B
+                # and C compared strings in directions that almost never
+                # match in practice (checking whether a bare domain like
+                # "beeorder.com" appears inside the query text, and vice
+                # versa with the "." replaced by a space) — so for a query
+                # like "شركة beeorder" this was effectively always False,
+                # meaning single-entity searches got zero protection from
+                # the rejection logic below despite being the exact case it
+                # was meant to protect. safety.is_direct_name_match does the
+                # actual job: strip generic entity-type words, then check if
+                # the remaining core name literally appears in the domain,
+                # title, or URL.
+                is_specific_search = safety.is_direct_name_match(
+                    query,
+                    result.domain,
+                    title=result.title,
+                    url=result.url,
                 )
 
+                has_contact_data = bool(
+                    record.get("people") or record.get("emails")
+                )
+
+                llm_verdict: dict | None = None
                 if llm.enabled():
-                    verdict = llm.validate_entity_record(
+                    llm_verdict = llm.validate_entity_record(
                         record, query, location, entity_type
                     )
-                    if verdict:
-                        record["meta"]["llm_relevance_reason"] = verdict.get(
+                    if llm_verdict:
+                        record["meta"]["llm_relevance_reason"] = llm_verdict.get(
                             "reason", ""
                         )
 
-                        if verdict.get("relevant") is False and not is_specific_search:
-                            if (
-                                len(record.get("people", [])) == 0
-                                and len(record.get("emails", [])) == 0
-                            ):
-                                log.info(
-                                    "LLM rejected record %s: %s",
-                                    result.url,
-                                    verdict.get("reason"),
-                                )
-                                continue
-                            else:
-                                log.info(
-                                    "LLM rejected %s but kept due to extracted contacts.",
-                                    result.url,
-                                )
-                elif not is_heuristic_relevant and not is_specific_search:
-                    if (
-                        len(record.get("people", [])) == 0
-                        and len(record.get("emails", [])) == 0
-                    ):
-                        log.info(
-                            "Skipping low-relevance record (heuristic): %s", result.url
-                        )
-                        continue
+                # Single combined keep/drop decision instead of two separate
+                # branches that could each silently `continue`. A record is
+                # dropped only when *every* available signal says to drop it:
+                # no direct name match, no extracted contact data, and (when
+                # the LLM ran) an explicit negative verdict, or (when the LLM
+                # didn't run) a negative heuristic score. Any one positive
+                # signal is enough to keep the record — this is the fix for
+                # "logs show a site was found but no entity ever appears":
+                # previously a single False LLM verdict on a contact-less
+                # page was enough to drop it outright.
+                if is_specific_search or has_contact_data:
+                    keep = True
+                    reason = "direct name match" if is_specific_search else "has contact data"
+                elif llm_verdict is not None:
+                    keep = llm_verdict.get("relevant") is not False
+                    reason = llm_verdict.get("reason", "llm verdict")
+                else:
+                    keep = is_heuristic_relevant
+                    reason = "heuristic score"
 
+                if not keep:
+                    log.info(
+                        "Dropping record for %s (query=%r): %s",
+                        result.url,
+                        query,
+                        reason,
+                    )
+                    continue
+
+                log.info(
+                    "Keeping record for %s (query=%r): %s [people=%d emails=%d]",
+                    result.url,
+                    query,
+                    reason,
+                    len(record.get("people") or []),
+                    len(record.get("emails") or []),
+                )
                 scraped_records.append(record)
 
         scraped_records.sort(

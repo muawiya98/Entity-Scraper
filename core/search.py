@@ -137,7 +137,18 @@ def _dedupe(
             location=location,
             entity_type=entity_type,
         )
-        if score >= min_score:
+        # A search-engine snippet/title often doesn't repeat the query's
+        # exact words even for the single correct result (e.g. the query is
+        # "beeorder" but the SERP title is just "Home | BeeOrder" with no
+        # other overlap once entity-type words are stripped, or the query
+        # is Arabic against an English-only site's snippet). Without this
+        # override, a specific-name search could have its one correct
+        # result filtered out here, before it ever reaches the LLM ranking
+        # or scraping stages — which matches "logs show it found sites, but
+        # no matching entity ever surfaces."
+        if score >= min_score or safety.is_direct_name_match(
+            query, r.domain, title=r.title, url=r.url
+        ):
             scored.append((score, r))
 
     out, seen = [], set()
@@ -377,7 +388,14 @@ def search_websites(
                 variants_to_try.append(variant)
 
     for variant in variants_to_try:
+        before = len(collected)
         _add(_run_one(variant))
+        log.info(
+            "Query variant %r yielded %d new domain(s) (total so far: %d)",
+            variant,
+            len(collected) - before,
+            len(collected),
+        )
         if len(collected) >= max_results:
             return collected[:max_results]
 
